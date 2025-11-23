@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package dermatoai;
+
+// Impor Tipe Timestamp
+import "google/protobuf/timestamp.proto";
+
+// =======================================
+// Layanan: SkinAnalysisService (Model CNN)
+// =======================================
+
+// Layanan ini mencerminkan endpoint POST /analyze-skin.
+// Ini menggunakan gRPC client-side streaming untuk menangani
+// unggahan gambar beresolusi tinggi yang mungkin melebihi
+// batas ukuran pesan gRPC default.
+service SkinAnalysisService {
+  
+  // Klien akan mengirimkan stream pesan:
+  // 1. Pesan AnalyzeSkinRequest pertama HARUS berisi 'info'.
+  // 2. Pesan-pesan berikutnya HARUS berisi 'chunk' (data byte gambar).
+  // 3. Klien menutup stream setelah semua chunk dikirim.
+  // Server akan merakit kembali gambar, memprosesnya dengan CNN,
+  // lalu mengirimkan satu AnalyzeSkinResponse.
+  rpc AnalyzeSkin (stream AnalyzeSkinRequest) returns (AnalyzeSkinResponse);
+}
+
+// --- Pesan untuk SkinAnalysisService ---
+
+// Pesan ImageInfo dikirim sebagai bagian pertama dari stream
+// untuk menyediakan metadata tentang gambar yang akan datang.
+message ImageInfo {
+  // Opsional: ID pengguna yang meminta analisis
+  string user_id = 1; 
+  
+  // Tipe file gambar, mis. "jpeg", "png", "webp".
+  // Ini sangat penting agar server tahu cara mendekode byte stream.
+  string image_type = 2;
+  
+  // Opsional: Metadata tambahan apa pun yang mungkin diperlukan model
+  map<string, string> metadata = 3;
+}
+
+// Pesan ini di-stream dari klien ke server.
+message AnalyzeSkinRequest {
+  // 'oneof' memastikan bahwa setiap pesan hanya berisi
+  // metadata (di awal) ATAU potongan gambar.
+  oneof request_payload {
+    ImageInfo info = 1; // Harus dikirim di pesan pertama
+    bytes chunk = 2;    // Data gambar mentah, dikirim dalam potongan
+  }
+}
+
+// Satu hasil prediksi dari model CNN.
+message AnalysisResult {
+  // Nama label/kelas yang diprediksi (mis. "jerawat", "cacar_air", "normal")
+  string label = 1;
+  
+  // Skor keyakinan (confidence) dari model (mis. 0.0 - 1.0)
+  float confidence = 2;
+  
+  // Opsional: Deskripsi singkat tentang kondisi yang terdeteksi
+  string description = 3;
+  
+  // Opsional: Rekomendasi atau langkah selanjutnya
+  string recommendation = 4;
+}
+
+// Respons tunggal yang dikirim server setelah menerima
+// dan menganalisis seluruh gambar.
+message AnalyzeSkinResponse {
+  // ID unik yang dihasilkan server untuk analisis ini
+  string analysis_id = 1;
+  
+  // Waktu kapan analisis selesai diproses
+  google.protobuf.Timestamp analysis_timestamp = 2;
+  
+  // Daftar hasil prediksi dari model
+  // (mungkin 1 hasil teratas, atau 3 teratas, dst.)
+  repeated AnalysisResult results = 3;
+}

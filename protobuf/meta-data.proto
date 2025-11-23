@@ -1,0 +1,342 @@
+syntax = proto3;
+
+package dermatoai;
+
+ Impor tipe data umum dari Google
+import googleprotobufempty.proto;
+import googleprotobuftimestamp.proto;
+
+ =======================================
+ Layanan UserService (Auth & Manajemen Pengguna)
+ =======================================
+service UserService {
+     Endpoint dari usersauthgoogle
+    rpc GoogleAuth(GoogleAuthRequest) returns (GoogleAuthResponse);
+
+     Endpoint dari userssignup
+    rpc Signup(SignupRequest) returns (SignupResponse);
+
+     Endpoint dari userssignin
+    rpc Signin(SigninRequest) returns (SigninResponse);
+
+     Endpoint dari usersall
+    rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse);
+
+     Endpoint dari usersupdateid
+    rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+
+     Endpoint dari usersdeleteid
+    rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+}
+
+ --- Pesan untuk UserService ---
+
+ Data pengguna umum yang dikembalikan di banyak respons
+message UserData {
+    string username = 1;
+    string name = 2;
+    string email = 3;
+    string picture = 4;
+}
+
+ Pesan untuk Google Auth (authgoogle)
+message GoogleAuthRequest {
+     Bisa kosong, hanya untuk memicu RPC
+}
+message GoogleAuthResponse {
+    string message = 1;
+    UserData data = 2;
+}
+
+ Pesan untuk Signup (userssignup)
+message SignupRequest {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+    string name = 4;
+    string birth_date = 5;
+}
+message SignupResponse {
+    string message = 1;
+    message SignupData {
+        string name = 1;
+        string email = 2;
+    }
+    SignupData data = 2;
+}
+
+ Pesan untuk Signin (userssignin)
+message SigninRequest {
+    string username = 1;
+    string password = 2;
+}
+message SigninResponse {
+    string message = 1;
+    message SigninData {
+        string id = 1;  Ditambahkan dari controller
+        string username = 2;
+        string email = 3;
+    }
+    SigninData data = 2;
+}
+
+ Pesan untuk GetAllUsers (usersall)
+message User {
+    string id = 1;
+    string username = 2;
+    string name = 3;
+    string email = 4;
+    string birth_date = 5;
+    string picture = 6;
+    google.protobuf.Timestamp create_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+message GetAllUsersRequest {}
+message GetAllUsersResponse {
+    string message = 1;
+    repeated User data = 2;
+}
+
+ Pesan untuk UpdateUser (usersupdateid)
+message UpdateUserRequest {
+    string id = 1;  dari URL param
+    string name = 2;
+    string email = 3;
+    string birth_date = 4;
+    string password = 5;
+}
+message UpdateUserResponse {
+    string message = 1;
+    message UpdateUserData {
+        string id = 1;
+        string name = 2;
+        string email = 3;
+        string birth_date = 4;
+        string password = 5;
+    }
+    UpdateUserData data = 2;
+}
+
+ Pesan untuk DeleteUser (usersdeleteid)
+message DeleteUserRequest {
+    string id = 1;  dari URL param
+}
+message DeleteUserResponse {
+    string message = 1;
+    google.protobuf.Empty data = 2;  Mewakili respons {}
+}
+
+ =======================================
+ Layanan DoctorService
+ =======================================
+service DoctorService {
+     Endpoint dari doctorsall
+    rpc GetAllDoctors(GetAllDoctorsRequest) returns (GetAllDoctorsResponse);
+}
+
+ --- Pesan untuk DoctorService ---
+
+message Doctor {
+    string id = 1;
+    string name = 2;
+    string address = 3;
+}
+
+message GetAllDoctorsRequest {}
+message GetAllDoctorsResponse {
+    string message = 1;
+    repeated Doctor data = 2;
+}
+
+ =======================================
+ Layanan AppointmentService
+ =======================================
+service AppointmentService {
+     Endpoint dari appointmentsall
+    rpc GetAllAppointments(GetAllAppointmentsRequest) returns (GetAllAppointmentsResponse);
+
+     Endpoint dari appointmentscreate
+    rpc CreateAppointment(CreateAppointmentRequest) returns (CreateAppointmentResponse);
+
+     Endpoint dari appointmentsupdateid
+    rpc UpdateAppointment(UpdateAppointmentRequest) returns (UpdateAppointmentResponse);
+
+     Endpoint dari appointmentsdeleteid
+    rpc DeleteAppointment(DeleteAppointmentRequest) returns (DeleteAppointmentResponse);
+
+     Endpoint dari appointmentshistoryid
+    rpc GetHistoryUser(GetHistoryUserRequest) returns (GetHistoryUserResponse);
+
+     Endpoint dari appointmentscurrentid
+    rpc GetCurrentUserAppointments(GetCurrentUserAppointmentsRequest) returns (GetCurrentUserAppointmentsResponse);
+}
+
+ --- Pesan untuk AppointmentService ---
+
+message Appointment {
+    string id = 1;
+    string user_id = 2;
+    string doctor_id = 3;
+    string appointment_date = 4;
+    string status = 5;
+    google.protobuf.Timestamp create_at = 6;
+    google.protobuf.Timestamp updated_at = 7;
+}
+
+ Pesan untuk GetAllAppointments (appointmentsall)
+message GetAllAppointmentsRequest {}
+message GetAllAppointmentsResponse {
+    string message = 1;
+    repeated Appointment data = 2;
+}
+
+ Pesan untuk CreateAppointment (appointmentscreate)
+message CreateAppointmentRequest {
+    string user_id = 1;
+    string doctor_id = 2;
+    string appointment_date = 3;
+    string status = 4;
+}
+message CreateAppointmentResponse {
+    string message = 1;
+    Appointment data = 2;
+}
+
+ Pesan untuk UpdateAppointment (appointmentsupdateid)
+message UpdateAppointmentRequest {
+    string id = 1;  dari URL param
+    string user_id = 2;
+    string doctor_id = 3;
+    string appointment_date = 4;
+    string status = 5;
+}
+message UpdateAppointmentResponse {
+    string message = 1;
+    Appointment data = 2;
+}
+
+ Pesan untuk DeleteAppointment (appointmentsdeleteid)
+message DeleteAppointmentRequest {
+    string id = 1;  dari URL param
+}
+message DeleteAppointmentResponse {
+    string message = 1;
+    google.protobuf.Empty data = 2;  Mewakili respons {}
+}
+
+ Pesan untuk GetHistoryUser (appointmentshistoryid)
+message GetHistoryUserRequest {
+    string user_id = 1;  dari URL param id
+}
+message GetHistoryUserResponse {
+    string message = 1;
+    repeated Appointment data = 2;
+}
+
+ Pesan untuk GetCurrentUserAppointments (appointmentscurrentid)
+message GetCurrentUserAppointmentsRequest {
+    string user_id = 1;  dari URL param id
+}
+message GetCurrentUserAppointmentsResponse {
+    string message = 1;
+    repeated Appointment data = 2;
+}
+
+ =======================================
+ Layanan DiscussionForumService
+ =======================================
+service DiscussionForumService {
+     Endpoint dari apidiscussions
+    rpc CreateDiscussion(CreateDiscussionRequest) returns (Discussion);
+
+     Endpoint dari apidiscussionsall
+    rpc GetAllDiscussions(GetAllDiscussionsRequest) returns (GetAllDiscussionsResponse);
+
+     Endpoint dari apidiscussionsid
+    rpc GetDiscussionById(GetDiscussionByIdRequest) returns (Discussion);
+
+     Endpoint dari apidiscussionsuserid
+    rpc GetUserDiscussions(GetUserDiscussionsRequest) returns (GetUserDiscussionsResponse);
+
+     Endpoint dari apicomments
+    rpc CreateComment(CreateCommentRequest) returns (CreateCommentResponse);
+
+     Endpoint dari apicommentsdiscussionIdcommentId
+    rpc DeleteComment(DeleteCommentRequest) returns (DeleteCommentResponse);
+
+     Endpoint dari apilikes
+    rpc ToggleLike(ToggleLikeRequest) returns (ToggleLikeResponse);
+}
+
+ --- Pesan untuk DiscussionForumService ---
+
+message Discussion {
+    string id = 1;
+    string title = 2;
+    string content = 3;
+    string category = 4;
+    string image = 5;
+    string authorId = 6;
+    google.protobuf.Timestamp createdAt = 7;  Standarisasi berdasarkan respons id
+}
+
+ Pesan untuk CreateDiscussion (apidiscussions)
+message CreateDiscussionRequest {
+    string title = 1;
+    string content = 2;
+    string category = 3;
+    string userId = 4;
+    bytes file = 5;  Untuk file upload
+    string file_mimetype = 6;  Info tipe file
+}
+ Respons adalah objek Discussion
+
+ Pesan untuk GetAllDiscussions (apidiscussionsall)
+message GetAllDiscussionsRequest {}
+message GetAllDiscussionsResponse {
+    string status = 1;
+    string message = 2;
+    repeated Discussion data = 3;
+}
+
+ Pesan untuk GetDiscussionById (apidiscussionsid)
+message GetDiscussionByIdRequest {
+    string id = 1;  dari URL param
+}
+ Respons adalah objek Discussion
+
+ Pesan untuk GetUserDiscussions (apidiscussionsuserid)
+message GetUserDiscussionsRequest {
+    string user_id = 1;  dari URL param id
+}
+message GetUserDiscussionsResponse {
+    repeated Discussion discussions = 1;  Respons adalah array langsung
+}
+
+ Pesan untuk CreateComment (apicomments)
+message CreateCommentRequest {
+    string discussionId = 1;
+    string userId = 2;
+    string content = 3;
+}
+message CreateCommentResponse {
+    string message = 1;
+}
+
+ Pesan untuk DeleteComment (apicommentsdiscussionIdcommentId)
+message DeleteCommentRequest {
+    string discussionId = 1;  dari URL param
+    string commentId = 2;   dari URL param
+}
+message DeleteCommentResponse {
+    string message = 1;
+}
+
+ Pesan untuk ToggleLike (apilikes)
+message ToggleLikeRequest {
+    string discussionId = 1;
+    string userId = 2;
+}
+message ToggleLikeResponse {
+    string message = 1;  Discussion liked atau Like removed
+}
