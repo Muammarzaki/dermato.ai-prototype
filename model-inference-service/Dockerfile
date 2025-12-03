@@ -36,8 +36,8 @@ RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnx
 COPY --from=builder /app/main .
 
 # Copy any additional required files (models, configs, etc.)
-COPY models/ ./models/
-COPY configs/ ./configs/
+COPY ../models/model_dermatoai94.onnx ./models/model.onnx
+COPY ../models/model_classes.json ./models/classes.json
 
 # Expose the ports your application uses
 EXPOSE 8008 8088
