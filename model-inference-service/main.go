@@ -5,13 +5,19 @@ import (
 	"model-inference-service/api"
 	"net"
 
-	"github.com/gofiber/fiber/v2"
-	"google.golang.org/grpc"
-
 	pb "model-inference-service/gen"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error to load .env file")
+	}
+
 	restsServer := fiber.New()
 	grpcServer := grpc.NewServer()
 

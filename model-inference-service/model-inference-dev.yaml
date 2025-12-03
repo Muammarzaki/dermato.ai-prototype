@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  model-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8088:8088"  # REST API port
+      - "8008:8008"  # gRPC port
+    networks:
+      - inference-network
+    restart: unless-stopped
+
+networks:
+  inference-network:
+    driver: bridge
