@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"model-inference-service/service"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	pb "model-inference-service/gen"
@@ -28,6 +31,7 @@ type Config struct {
 	ModelPath     string
 	ClassDictPath string
 	DBConfig      DBConfig
+	RestMode      bool
 }
 
 type DBConfig struct {
@@ -53,9 +57,12 @@ func loadConfig() (*Config, error) {
 		classDictPath = "./models/classes.json"
 	}
 
+	restMode := os.Getenv("REST_MODE") == "true"
+
 	return &Config{
 		ModelPath:     modelPath,
 		ClassDictPath: classDictPath,
+		RestMode:      restMode,
 		DBConfig: DBConfig{
 			Host:     os.Getenv("DB_HOST"),
 			User:     os.Getenv("DB_USER"),
@@ -96,56 +103,96 @@ func initDB(config DBConfig) (*gorm.DB, error) {
 	return db, nil
 }
 
-func startChronicEventProcessor(repository *data.ChronicRepository, events chan event.Event) {
+func startChronicEventProcessor(ctx context.Context, repository *data.ChronicRepository, events chan event.Event) {
 	go func() {
-		for ev := range events {
-			err := repository.Create(context.Background(), &data.Chronic{
-				ID:        uuid.New(),
-				Body:      ev.Body,
-				Status:    ev.Status,
-				CreatedAt: time.Now(),
-			})
-			if err != nil {
-				log.Printf("failed to save chronic event: %v", err)
+		defer close(events)
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Stopping chronic event processor")
+				return
+			case ev, ok := <-events:
+				if !ok {
+					return
+				}
+				err := repository.Create(ctx, &data.Chronic{
+					ID:        uuid.New(),
+					Body:      ev.Body,
+					Status:    ev.Status,
+					CreatedAt: time.Now(),
+				})
+				if err != nil {
+					log.Printf("failed to save chronic event: %v", err)
+				}
 			}
 		}
 	}()
 }
 
-func startServers(inferenceService *service.InferenceService, events chan event.Event) {
-	// Initialize servers
-	restsServer := fiber.New()
-	grpcServer := grpc.NewServer()
+func startServers(ctx context.Context, inferenceService *service.InferenceService, events chan event.Event, mode bool) error {
+	errChan := make(chan error, 1)
 
-	// Setup handlers and routes
-	skinAnalysisServer := api.NewSkinAnalysisServer(inferenceService, events)
-	restHandler := api.HandleFileUpload(inferenceService, events)
+	if !mode {
+		grpcServer := grpc.NewServer()
+		pb.RegisterSkinAnalysisServiceServer(grpcServer, api.NewSkinAnalysisServer(inferenceService, events))
 
-	pb.RegisterSkinAnalysisServiceServer(grpcServer, skinAnalysisServer)
-	restsServer.Post("/analyze-skin", restHandler)
-
-	// Start gRPC server
-	go func() {
 		lis, err := net.Listen("tcp", ":8008")
 		if err != nil {
-			log.Fatalf("Failed to listen: %v", err)
+			return fmt.Errorf("failed to listen: %v", err)
 		}
-		log.Printf("Starting gRPC server on :8008")
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("Failed to serve gRPC: %v", err)
-		}
-	}()
 
-	// Start a REST server
-	go func() {
-		log.Printf("Starting Fiber server on :8088")
-		if err := restsServer.Listen(":8088"); err != nil {
-			log.Fatalf("Failed to serve Fiber: %v", err)
-		}
-	}()
+		go func() {
+			log.Printf("Starting gRPC server on :8008")
+			if err := grpcServer.Serve(lis); err != nil {
+				errChan <- fmt.Errorf("failed to serve gRPC: %v", err)
+			}
+		}()
+
+		go func() {
+			<-ctx.Done()
+			grpcServer.GracefulStop()
+		}()
+
+	} else {
+		app := fiber.New()
+		app.Post("/analyze-skin", api.HandleFileUpload(inferenceService, events))
+
+		go func() {
+			log.Printf("Starting Fiber server on :8088")
+			if err := app.Listen(":8088"); err != nil {
+				errChan <- fmt.Errorf("failed to serve Fiber: %v", err)
+			}
+		}()
+
+		go func() {
+			<-ctx.Done()
+			if err := app.Shutdown(); err != nil {
+				log.Printf("Error shutting down Fiber server: %v", err)
+			}
+		}()
+	}
+
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigChan
+		log.Printf("Received signal %v, initiating shutdown", sig)
+		cancel()
+	}()
+
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -161,6 +208,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func(sqlDB *sql.DB) {
+		err := sqlDB.Close()
+		if err != nil {
+			log.Printf("Failed to close database connection: %v", err)
+		}
+	}(sqlDB)
+
 	onnxModel, err := model.NewONNXModel(config.ModelPath)
 	if err != nil {
 		log.Fatalf("Failed to load ONNX model: %v", err)
@@ -172,11 +230,15 @@ func main() {
 	}()
 
 	repository := data.NewChronicRepository(db)
-	chronicEvents := make(chan event.Event)
-	startChronicEventProcessor(repository, chronicEvents)
+	chronicEvents := make(chan event.Event, 100)
+	startChronicEventProcessor(ctx, repository, chronicEvents)
 
-	inferenceService := service.NewInferenceService(onnxModel, &classDict)
-	startServers(inferenceService, chronicEvents)
+	inferenceService := service.NewInferenceService(onnxModel, classDict)
 
-	select {}
+	if err := startServers(ctx, inferenceService, chronicEvents, config.RestMode); err != nil {
+		log.Fatal(err)
+	}
+
+	<-ctx.Done()
+	log.Println("Shutting down gracefully...")
 }
