@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"model-inference-service/event"
 	"model-inference-service/service"
 	"time"
 
@@ -29,7 +30,7 @@ type FileUploadResponse struct {
 	Results           []AnalysisResult `json:"results"`
 }
 
-func HandleFileUpload(inferenceService *service.InferenceService) fiber.Handler {
+func HandleFileUpload(inferenceService *service.InferenceService, event chan event.Event) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		file, err := c.FormFile("file")
 		if err != nil {

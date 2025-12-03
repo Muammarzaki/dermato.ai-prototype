@@ -2,6 +2,7 @@ package api
 
 import (
 	"io"
+	"model-inference-service/event"
 	"model-inference-service/service"
 	"time"
 
@@ -14,11 +15,13 @@ import (
 type SkinAnalysisServer struct {
 	pb.UnimplementedSkinAnalysisServiceServer
 	inferenceService *service.InferenceService
+	event            chan event.Event
 }
 
-func NewSkinAnalysisServer(inferenceService *service.InferenceService) *SkinAnalysisServer {
+func NewSkinAnalysisServer(inferenceService *service.InferenceService, event chan event.Event) *SkinAnalysisServer {
 	return &SkinAnalysisServer{
 		inferenceService: inferenceService,
+		event:            event,
 	}
 }
 

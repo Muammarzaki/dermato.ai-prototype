@@ -6,12 +6,14 @@ import (
 )
 
 type InferenceService struct {
-	model *model.ONNXModel
+	model     *model.ONNXModel
+	classDict *[]string
 }
 
-func NewInferenceService(m *model.ONNXModel) *InferenceService {
+func NewInferenceService(m *model.ONNXModel, c *[]string) *InferenceService {
 	return &InferenceService{
-		model: m,
+		model:     m,
+		classDict: c,
 	}
 }
 
@@ -31,7 +33,7 @@ func (s *InferenceService) GetTopKPredictions(input []float32, k int) ([]Predict
 
 	results := make([]PredictionResult, len(indices))
 	for i := range indices {
-		className, err := GetClassName(indices[i])
+		className, err := s.GetClassName(indices[i])
 		if err != nil {
 			return nil, err
 		}
@@ -51,20 +53,13 @@ type PredictionResult struct {
 	Confidence float32 `json:"confidence"`
 }
 
-func GetClassName(classIndex int) (string, error) {
-	classNames := []string{
-		"Normal",
-		"Acne",
-		"Chickenpox",
-		"Eczema",
-		"Psoriasis",
-		"Rosacea",
-		"Vitiligo",
-		"Melanoma",
+func (s *InferenceService) GetClassName(classIndex int) (string, error) {
+	if s.classDict == nil {
+		return "", fmt.Errorf("class dictionary is nil")
 	}
 
-	if classIndex >= 0 && classIndex < len(classNames) {
-		return classNames[classIndex], nil
+	if classIndex >= 0 && classIndex < len(*s.classDict) {
+		return (*s.classDict)[classIndex], nil
 	}
 
 	return "", fmt.Errorf("unknown class index: %d", classIndex)
