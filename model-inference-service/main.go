@@ -3,7 +3,10 @@ package main
 import (
 	"log"
 	"model-inference-service/api"
+	"model-inference-service/model"
+	"model-inference-service/service"
 	"net"
+	"os"
 
 	pb "model-inference-service/gen"
 
@@ -18,12 +21,33 @@ func main() {
 		log.Fatal("Error to load .env file")
 	}
 
+	modelPath := os.Getenv("ONNX_MODEL_PATH")
+	if modelPath == "" {
+		modelPath = "./models/model.onnx"
+	}
+
+	onnxModel, err := model.NewONNXModel(modelPath)
+	if err != nil {
+		log.Fatalf("Failed to load ONNX model: %v", err)
+	}
+	defer func(onnxModel *model.ONNXModel) {
+		err := onnxModel.Close()
+		if err != nil {
+			log.Fatalf("Failed to close ONNX model: %v", err)
+		}
+	}(onnxModel)
+
+	inferenceService := service.NewInferenceService(onnxModel)
+
+	skinAnalysisServer := api.NewSkinAnalysisServer(inferenceService)
+	restHandler := api.HandleFileUpload(inferenceService)
+
 	restsServer := fiber.New()
 	grpcServer := grpc.NewServer()
 
-	pb.RegisterSkinAnalysisServiceServer(grpcServer, &api.SkinAnalysisServer{})
+	pb.RegisterSkinAnalysisServiceServer(grpcServer, skinAnalysisServer)
 
-	restsServer.Post("/analyze-skin", api.HandleFileUpload)
+	restsServer.Post("/analyze-skin", restHandler)
 
 	go func() {
 		lis, err := net.Listen("tcp", ":8008")

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"model-inference-service/service"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -28,49 +29,62 @@ type FileUploadResponse struct {
 	Results           []AnalysisResult `json:"results"`
 }
 
-func HandleFileUpload(c *fiber.Ctx) error {
-	file, err := c.FormFile("file")
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Failed to get file",
-		})
-	}
-
-	metadata := make(map[string]string)
-	if metadataStr := c.FormValue("metadata"); metadataStr != "" {
-		if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+func HandleFileUpload(inferenceService *service.InferenceService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		file, err := c.FormFile("file")
+		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid metadata format",
+				"error": "Failed to get file",
 			})
 		}
-	}
 
-	_ = FileUploadRequest{
-		UserID:    c.FormValue("user_id"),
-		ImageType: file.Header.Get("Content-Type"),
-		Metadata:  metadata,
-	}
+		metadata := make(map[string]string)
+		if metadataStr := c.FormValue("metadata"); metadataStr != "" {
+			if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid metadata format",
+				})
+			}
+		}
 
-	fileContent, err := file.Open()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open file",
-		})
-	}
-	defer fileContent.Close()
+		_ = FileUploadRequest{
+			UserID:    c.FormValue("user_id"),
+			ImageType: file.Header.Get("Content-Type"),
+			Metadata:  metadata,
+		}
 
-	buffer := make([]byte, file.Size)
-	if _, err := io.ReadFull(fileContent, buffer); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to read file",
-		})
-	}
+		fileContent, err := file.Open()
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to open file",
+			})
+		}
+		defer fileContent.Close()
 
-	response := FileUploadResponse{
-		AnalysisID:        uuid.New().String(),
-		AnalysisTimestamp: time.Now(),
-		Results:           []AnalysisResult{},
-	}
+		buffer := make([]byte, file.Size)
+		if _, err := io.ReadFull(fileContent, buffer); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to read file",
+			})
+		}
 
-	return c.JSON(response)
+		// TODO: Preprocess image buffer ke float32 array
+		// preprocessedInput := preprocessImage(buffer)
+
+		// Sekarang bisa gunakan inferenceService yang di-capture dari closure!
+		// predictions, err := inferenceService.Infer(preprocessedInput)
+		// if err != nil {
+		//     return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		//         "error": "Inference failed",
+		//     })
+		// }
+
+		response := FileUploadResponse{
+			AnalysisID:        uuid.New().String(),
+			AnalysisTimestamp: time.Now(),
+			Results:           []AnalysisResult{},
+		}
+
+		return c.JSON(response)
+	}
 }
