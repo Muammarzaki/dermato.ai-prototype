@@ -1,22 +1,19 @@
 # Build stage
-FROM golang:1.21-bullseye AS builder
+FROM golang:1.25.5-bookworm AS builder
 
 WORKDIR /app
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
+# Copy the source code
+COPY ./model-inference-service .
 
 # Download dependencies
 RUN go mod download
-
-# Copy the source code
-COPY . .
 
 # Build the application
 RUN CGO_ENABLED=1 GOOS=linux go build -o main .
 
 # Runtime stage
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
@@ -36,8 +33,8 @@ RUN wget https://github.com/microsoft/onnxruntime/releases/download/v1.15.1/onnx
 COPY --from=builder /app/main .
 
 # Copy any additional required files (models, configs, etc.)
-COPY ../models/model_dermatoai94.onnx ./models/model.onnx
-COPY ../models/model_classes.json ./models/classes.json
+COPY /models/model_dermatoai94.onnx ./models/model.onnx
+COPY /models/model_classes.json ./models/classes.json
 
 # Expose the ports your application uses
 EXPOSE 8008 8088

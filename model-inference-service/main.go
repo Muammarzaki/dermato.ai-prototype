@@ -43,9 +43,7 @@ type DBConfig struct {
 }
 
 func loadConfig() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("error loading .env file: %v", err)
-	}
+	_ = godotenv.Load()
 
 	modelPath := os.Getenv("ONNX_MODEL_PATH")
 	if modelPath == "" {
