@@ -86,7 +86,7 @@ func loadClassDictionary(path string) ([]string, error) {
 }
 
 func initDB(config DBConfig) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s",
 		config.Host, config.User, config.Password, config.Name, config.Port)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
