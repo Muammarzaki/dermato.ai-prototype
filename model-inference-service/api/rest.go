@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"model-inference-service/event"
 	"model-inference-service/service"
 	"time"
@@ -30,55 +31,108 @@ type FileUploadResponse struct {
 	Results           []AnalysisResult `json:"results"`
 }
 
-func HandleFileUpload(inferenceService *service.InferenceService, event chan event.Event) fiber.Handler {
+func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent chan event.Event) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		file, err := c.FormFile("file")
 		if err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Failed to get file: " + err.Error(),
+			}
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Failed to get file",
+				"error":   "Failed to get file",
+				"details": err.Error(),
+			})
+		}
+
+		if file.Size == 0 {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Empty file uploaded",
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Empty file uploaded",
 			})
 		}
 
 		metadata := make(map[string]string)
 		if metadataStr := c.FormValue("metadata"); metadataStr != "" {
 			if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+				chronicEvent <- event.Event{
+					Status: "error",
+					Body:   "Invalid metadata format: " + err.Error(),
+				}
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Invalid metadata format",
+					"error":   "Invalid metadata format",
+					"details": err.Error(),
 				})
 			}
 		}
 
-		_ = FileUploadRequest{
+		uploadRequest := FileUploadRequest{
 			UserID:    c.FormValue("user_id"),
 			ImageType: file.Header.Get("Content-Type"),
 			Metadata:  metadata,
 		}
 
-		fileContent, err := file.Open()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to open file",
+		if uploadRequest.UserID == "" {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "User ID is required",
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "User ID is required",
 			})
 		}
-		defer fileContent.Close()
+
+		fileContent, err := file.Open()
+		if err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Failed to open file: " + err.Error(),
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Failed to open file",
+				"details": err.Error(),
+			})
+		}
+		defer func(fileContent multipart.File) {
+			_ = fileContent.Close()
+		}(fileContent)
 
 		buffer := make([]byte, file.Size)
 		if _, err := io.ReadFull(fileContent, buffer); err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Failed to read file: " + err.Error(),
+			}
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to read file",
+				"error":   "Failed to read file",
+				"details": err.Error(),
 			})
 		}
 
-		// TODO: Preprocess image buffer ke float32 array
 		preprocessedInput, err := service.Preprocessing(&buffer)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{})
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Failed to preprocess image: " + err.Error(),
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Failed to preprocess image",
+				"details": err.Error(),
+			})
 		}
 
 		predictionResults, err := inferenceService.GetTopKPredictions(preprocessedInput, 1)
 		if err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Inference failed: " + err.Error(),
+			}
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Inference failed",
+				"error":   "Inference failed",
+				"details": err.Error(),
 			})
 		}
 
@@ -97,6 +151,23 @@ func HandleFileUpload(inferenceService *service.InferenceService, event chan eve
 			AnalysisID:        uuid.New().String(),
 			AnalysisTimestamp: time.Now(),
 			Results:           analysisResults,
+		}
+
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Failed to marshal response: " + err.Error(),
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Internal server error",
+				"details": err.Error(),
+			})
+		}
+
+		chronicEvent <- event.Event{
+			Status: "success",
+			Body:   string(responseJSON),
 		}
 
 		return c.JSON(response)

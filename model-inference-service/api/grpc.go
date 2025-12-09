@@ -10,19 +10,21 @@ import (
 	pb "model-inference-service/gen"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SkinAnalysisServer struct {
 	pb.UnimplementedSkinAnalysisServiceServer
 	inferenceService *service.InferenceService
-	event            chan event.Event
+	chronicEvent     chan event.Event
 }
 
 func NewSkinAnalysisServer(inferenceService *service.InferenceService, event chan event.Event) *SkinAnalysisServer {
 	return &SkinAnalysisServer{
 		inferenceService: inferenceService,
-		event:            event,
+		chronicEvent:     event,
 	}
 }
 
@@ -36,7 +38,11 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 			break
 		}
 		if err != nil {
-			return err
+			s.chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "Error receiving stream: " + err.Error(),
+			}
+			return status.Errorf(codes.Internal, "failed to receive stream: %v", err)
 		}
 
 		switch payload := req.RequestPayload.(type) {
@@ -47,15 +53,30 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		}
 	}
 
-	// TODO: Preprocess image buffer ke float32 array
+	if len(imageData) == 0 {
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   "Empty image data received",
+		}
+		return status.Error(codes.InvalidArgument, "empty image data")
+	}
+
 	preprocessedInput, err := service.Preprocessing(&imageData)
 	if err != nil {
-		return fmt.Errorf("failed to preprocess image: %w", err)
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   fmt.Sprintf("Failed to preprocess image: %v", err),
+		}
+		return status.Errorf(codes.InvalidArgument, "failed to preprocess image: %v", err)
 	}
 
 	predictionResults, err := s.inferenceService.GetTopKPredictions(preprocessedInput, 1)
 	if err != nil {
-		return fmt.Errorf("failed to predict: %w", err)
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   fmt.Sprintf("Prediction failed: %v", err),
+		}
+		return status.Errorf(codes.Internal, "failed to predict: %v", err)
 	}
 
 	var analysisResults []*pb.AnalysisResult
@@ -75,5 +96,18 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		Results:           analysisResults,
 	}
 
-	return stream.SendAndClose(response)
+	s.chronicEvent <- event.Event{
+		Status: "success",
+		Body:   fmt.Sprintf("Analysis completed successfully for ID: %s", response.AnalysisId),
+	}
+
+	if err := stream.SendAndClose(response); err != nil {
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   fmt.Sprintf("Failed to send response: %v", err),
+		}
+		return status.Errorf(codes.Internal, "failed to send response: %v", err)
+	}
+
+	return nil
 }
