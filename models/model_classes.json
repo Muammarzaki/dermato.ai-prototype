@@ -1,10 +1,43 @@
 [
-	"akne",
-	"dermatitis",
-	"melanoma",
-	"psoriasis",
-	"rosacea",
-	"kurap",
-	"urtikaria",
-	"vitiligo"
+  {
+    "name": "akne",
+    "description": "Akne (jerawat) adalah kondisi kulit saat pori-pori tersumbat oleh minyak, sel kulit mati, atau bakteri sehingga menimbulkan komedo, pustula, atau nodul.",
+    "recommendation": "Gunakan pembersih ringan, hindari memencet jerawat, gunakan produk berbahan salicylic acid atau benzoyl peroxide, dan konsultasikan ke dokter kulit jika jerawat meradang atau tidak membaik."
+  },
+  {
+    "name": "dermatitis",
+    "description": "Dermatitis adalah peradangan kulit yang menyebabkan gatal, kering, atau ruam kemerahan. Bisa dipicu alergi, iritasi, atau faktor genetik.",
+    "recommendation": "Hindari iritan, gunakan pelembap secara rutin, dan gunakan krim anti-inflamasi sesuai anjuran dokter."
+  },
+  {
+    "name": "melanoma",
+    "description": "Melanoma adalah jenis kanker kulit yang berasal dari sel melanosit dan dapat menyebar dengan cepat bila tidak ditangani.",
+    "recommendation": "Segera periksakan ke dokter kulit atau onkologis jika ada tahi lalat dengan perubahan bentuk, warna, atau ukuran. Penanganan medis wajib."
+  },
+  {
+    "name": "psoriasis",
+    "description": "Psoriasis adalah penyakit autoimun yang menyebabkan regenerasi kulit terlalu cepat sehingga muncul sisik tebal berwarna putih keperakan.",
+    "recommendation": "Gunakan pelembap, hindari pemicu seperti stres, dan konsultasikan untuk terapi seperti krim steroid, fototerapi, atau obat sistemik."
+  },
+  {
+    "name": "rosacea",
+    "description": "Rosacea adalah kondisi kronis yang menyebabkan wajah memerah, muncul benjolan kecil, dan sensitivitas kulit.",
+    "recommendation": "Hindari pemicu seperti panas berlebih, alkohol, dan makanan pedas. Gunakan sunscreen dan konsultasikan untuk terapi topikal atau oral."
+  },
+  {
+    "name": "kurap",
+    "description": "Kurap (tinea) adalah infeksi jamur yang menyebabkan bercak bulat, bersisik, dan gatal pada kulit.",
+    "recommendation": "Gunakan krim antijamur seperti terbinafine atau clotrimazole. Jaga area tetap kering dan bersih."
+  },
+  {
+    "name": "urtikaria",
+    "description": "Urtikaria (hives/biduran) adalah reaksi kulit yang muncul sebagai bentol merah dan gatal, biasanya akibat alergi.",
+    "recommendation": "Hindari pemicu, konsumsi antihistamin bila perlu, dan konsultasikan dokter jika sering kambuh atau berlangsung lama."
+  },
+  {
+    "name": "vitiligo",
+    "description": "Vitiligo adalah kondisi hilangnya pigmen kulit sehingga muncul bercak putih.",
+    "recommendation": "Gunakan sunscreen untuk melindungi area tanpa pigmen. Konsultasi diperlukan untuk opsi terapi seperti fototerapi atau topikal tertentu."
+  }
 ]
+

@@ -75,18 +75,28 @@ func HandleFileUpload(inferenceService *service.InferenceService, event chan eve
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{})
 		}
 
-		// Sekarang bisa gunakan inferenceService yang di-capture dari closure!
-		_, err = inferenceService.Predict(preprocessedInput)
+		predictionResults, err := inferenceService.GetTopKPredictions(preprocessedInput, 1)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Inference failed",
 			})
 		}
 
+		var analysisResults []AnalysisResult
+
+		for _, predictionResult := range predictionResults {
+			analysisResults = append(analysisResults, AnalysisResult{
+				Label:          predictionResult.ClassName,
+				Confidence:     predictionResult.Confidence,
+				Description:    inferenceService.GetDescription(predictionResult.ClassIndex),
+				Recommendation: inferenceService.GetRecommendation(predictionResult.ClassIndex),
+			})
+		}
+
 		response := FileUploadResponse{
 			AnalysisID:        uuid.New().String(),
 			AnalysisTimestamp: time.Now(),
-			Results:           []AnalysisResult{},
+			Results:           analysisResults,
 		}
 
 		return c.JSON(response)

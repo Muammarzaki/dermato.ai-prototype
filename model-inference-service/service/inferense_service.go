@@ -10,11 +10,11 @@ import (
 
 type InferenceService struct {
 	model     *model.ONNXModel
-	classDict []string
+	classDict []DiseaseClass
 	mu        sync.Mutex
 }
 
-func NewInferenceService(m *model.ONNXModel, c []string) *InferenceService {
+func NewInferenceService(m *model.ONNXModel, c []DiseaseClass) *InferenceService {
 	return &InferenceService{
 		model:     m,
 		classDict: c,
@@ -44,13 +44,13 @@ func (s *InferenceService) GetTopKPredictions(input []float32, k int) ([]Predict
 
 	results := make([]PredictionResult, len(indices))
 	for i := range indices {
-		className, err := s.GetClassName(indices[i])
+		classLabel, err := s.GetClassName(indices[i])
 		if err != nil {
 			return nil, err
 		}
 		results[i] = PredictionResult{
 			ClassIndex: indices[i],
-			ClassName:  className,
+			ClassName:  classLabel.Name,
 			Confidence: probs[i],
 		}
 	}
@@ -64,19 +64,19 @@ type PredictionResult struct {
 	Confidence float32 `json:"confidence"`
 }
 
-func (s *InferenceService) GetClassName(classIndex int) (string, error) {
+func (s *InferenceService) GetClassName(classIndex int) (DiseaseClass, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.classDict == nil {
-		return "", fmt.Errorf("class dictionary is nil")
+		return DiseaseClass{}, fmt.Errorf("class dictionary is nil")
 	}
 
 	if classIndex >= 0 && classIndex < len(s.classDict) {
 		return (s.classDict)[classIndex], nil
 	}
 
-	return "", fmt.Errorf("unknown class index: %d", classIndex)
+	return DiseaseClass{}, fmt.Errorf("unknown class index: %d", classIndex)
 }
 
 func (s *InferenceService) ValidateInput(input []float32) error {
@@ -97,4 +97,17 @@ func Preprocessing(buffer *[]byte) ([]float32, error) {
 		return []float32{}, fmt.Errorf(" Error reading tensor: %v", err)
 	}
 	return tensor, nil
+}
+
+type DiseaseClass struct {
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Recommendation string `json:"recommendation"`
+}
+
+func (s *InferenceService) GetDescription(index int) string {
+	return s.classDict[index].Description
+}
+func (s *InferenceService) GetRecommendation(index int) string {
+	return s.classDict[index].Recommendation
 }

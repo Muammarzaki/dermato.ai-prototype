@@ -71,13 +71,13 @@ func loadConfig() (*Config, error) {
 	}, nil
 }
 
-func loadClassDictionary(path string) ([]string, error) {
+func loadClassDictionary(path string) ([]service.DiseaseClass, error) {
 	classesFile, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read class dictionary: %v", err)
 	}
 
-	var classDict []string
+	var classDict []service.DiseaseClass
 	if err := json.Unmarshal(classesFile, &classDict); err != nil {
 		return nil, fmt.Errorf("failed to parse class dictionary: %v", err)
 	}
