@@ -10,9 +10,9 @@ import (
 
 type Chronic struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	Body      string    `gorm:"type:json" json:"body"`
-	Status    string    `gorm:"type:varchar(10);check:status IN ('success','error')" json:"status"`
-	CreatedAt time.Time `gorm:"type:timestamp;not null" json:"created_at"`
+	Body      string    `gorm:"type:text" json:"body"`
+	Status    string    `gorm:"type:varchar(10)" json:"status"`
+	CreatedAt time.Time `gorm:"type:timestamp;not null;default:CURRENT_TIMESTAMP" json:"created_at"`
 }
 
 type ChronicRepository struct {

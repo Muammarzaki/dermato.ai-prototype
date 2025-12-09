@@ -89,13 +89,18 @@ func initDB(config DBConfig) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s",
 		config.Host, config.User, config.Password, config.Name, config.Port)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %v", err)
 	}
 
-	if err := db.AutoMigrate(&data.Chronic{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate database: %v", err)
+	hasTable := db.Migrator().HasTable(&data.Chronic{})
+	if !hasTable {
+		if err := db.AutoMigrate(&data.Chronic{}); err != nil {
+			return nil, fmt.Errorf("failed to migrate database: %v", err)
+		}
 	}
 
 	return db, nil
