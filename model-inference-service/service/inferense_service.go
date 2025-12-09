@@ -1,6 +1,8 @@
 package service
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"model-inference-service/model"
 	"sync"
@@ -86,4 +88,13 @@ func (s *InferenceService) ValidateInput(input []float32) error {
 		return fmt.Errorf("invalid input size: expected %d, got %d", expectedSize, len(input))
 	}
 	return nil
+}
+
+func Preprocessing(buffer *[]byte) ([]float32, error) {
+	tensor := make([]float32, 0)
+	err := binary.Read(bytes.NewBuffer(*buffer), binary.LittleEndian, &tensor)
+	if err != nil {
+		return []float32{}, fmt.Errorf(" Error reading tensor: %v", err)
+	}
+	return tensor, nil
 }

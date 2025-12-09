@@ -7,7 +7,7 @@ import (
 )
 
 // ONNXModel represents a wrapper for ONNX Runtime model operations
-// Designed for image classification with 8 classes (from TensorFlow.js converted model)
+// Designed for image classification with 8 classes
 type ONNXModel struct {
 	session      *ort.AdvancedSession
 	inputTensor  *ort.Tensor[float32]

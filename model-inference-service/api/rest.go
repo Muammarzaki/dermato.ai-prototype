@@ -70,15 +70,18 @@ func HandleFileUpload(inferenceService *service.InferenceService, event chan eve
 		}
 
 		// TODO: Preprocess image buffer ke float32 array
-		// preprocessedInput := preprocessImage(buffer)
+		preprocessedInput, err := service.Preprocessing(&buffer)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{})
+		}
 
 		// Sekarang bisa gunakan inferenceService yang di-capture dari closure!
-		// predictions, err := inferenceService.Infer(preprocessedInput)
-		// if err != nil {
-		//     return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		//         "error": "Inference failed",
-		//     })
-		// }
+		_, err = inferenceService.Predict(preprocessedInput)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Inference failed",
+			})
+		}
 
 		response := FileUploadResponse{
 			AnalysisID:        uuid.New().String(),

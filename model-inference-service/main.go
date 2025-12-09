@@ -152,7 +152,9 @@ func startServers(ctx context.Context, inferenceService *service.InferenceServic
 		}()
 
 	} else {
-		app := fiber.New()
+		app := fiber.New(fiber.Config{
+			DisableStartupMessage: true,
+		})
 		app.Post("/analyze-skin", api.HandleFileUpload(inferenceService, events))
 
 		go func() {
