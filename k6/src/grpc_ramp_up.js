@@ -1,5 +1,5 @@
-import grpc from "k6/net/grpc"
 import {grpc_fetch} from "./utils/grpc_utils.js";
+import grpc from "k6/net/grpc/index.d.ts";
 
 const client = new grpc.Client();
 client.load(['../../protobuf'], 'citra.proto');
@@ -8,17 +8,6 @@ const imageBin = open('../test-images/sample.jpg', 'b')
 
 export const options = {
     scenarios: {
-        single_user: {
-            executor: 'per-vu-iterations',
-            vus: 1,
-            iterations: 20,
-            maxDuration: '5m',
-        },
-        concurrent_users: {
-            executor: 'constant-vus',
-            vus: 20,
-            duration: '2m',
-        },
         ramp_up: {
             executor: 'ramping-vus',
             stages: [
