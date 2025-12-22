@@ -1,5 +1,6 @@
 import grpc from "k6/net/grpc"
 import encoding from 'k6/encoding'
+import {check} from "k6";
 
 const client = new grpc.Client();
 client.load(['../protobuf'], 'citra.proto');
@@ -19,7 +20,10 @@ export default () => {
     );
 
 
-    stream.on('data', () => {
+    stream.on('data', (res) => {
+        check(res, {
+            'status is 200': (r) => r !== null,
+        })
         client.close();
     });
 
@@ -41,7 +45,7 @@ export default () => {
         },
     });
 
-    const chunkSize = 32 * 1024;
+    const chunkSize = 128 * 1024;
     for (let i = 0; i < imageBin.byteLength; i += chunkSize) {
         stream.write({
             chunk: encoding.b64encode(
