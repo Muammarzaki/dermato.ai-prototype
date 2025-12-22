@@ -6,9 +6,9 @@ services:
     ports:
       - "8008:8008"  # gRPC port
     networks:
-      - inference-network
+      - inference-network-grpc
     environment:
-      - "DB_HOST=database"
+      - "DB_HOST=database_grpc"
       - "DB_USER=serverdata"
       - "DB_PASSWORD=server123"
       - "DB_NAME=chronic"
@@ -16,7 +16,10 @@ services:
       - "ONNX_MODEL_PATH="
       - "CLASS_DICTIONARY_PATH="
     depends_on:
-      - database
+      - database_grpc
+    cpus: 0.5
+    mem_limit: 512M
+    mem_reservation: 256M
 
   model-inference-rest:
     build:
@@ -25,10 +28,10 @@ services:
     ports:
       - "8088:8088"  # REST API port
     networks:
-      - inference-network
+      - inference-network-rest
     environment:
       - "REST_MODE=true"
-      - "DB_HOST=database"
+      - "DB_HOST=database_rest"
       - "DB_USER=serverdata"
       - "DB_PASSWORD=server123"
       - "DB_NAME=chronic"
@@ -36,25 +39,43 @@ services:
       - "ONNX_MODEL_PATH="
       - "CLASS_DICTIONARY_PATH="
     depends_on:
-      - database
+      - database_rest
+    cpus: 0.5
+    mem_limit: 512M
+    mem_reservation: 256M
 
-  database:
+  database_grpc:
     image: postgres:16-alpine
-    ports:
-      - "5432:5432"
     networks:
-      - inference-network
+      - inference-network-grpc
     environment:
       - POSTGRES_DB=chronic
       - POSTGRES_USER=serverdata
       - POSTGRES_PASSWORD=server123
     volumes:
-      - db:/var/lib/postgresql/data
+      - db1:/var/lib/postgresql/data
+
+
+  database_rest:
+    image: postgres:16-alpine
+    networks:
+      - inference-network-rest
+    environment:
+      - POSTGRES_DB=chronic
+      - POSTGRES_USER=serverdata
+      - POSTGRES_PASSWORD=server123
+    volumes:
+      - db2:/var/lib/postgresql/data
+
 
 networks:
-  inference-network:
+  inference-network-grpc:
+    driver: bridge
+
+  inference-network-rest:
     driver: bridge
 
 
 volumes:
-  db:
+  db1:
+  db2:
