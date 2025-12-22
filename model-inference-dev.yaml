@@ -17,9 +17,9 @@ services:
       - "CLASS_DICTIONARY_PATH="
     depends_on:
       - database_grpc
-    cpus: 0.5
-    mem_limit: 512M
-    mem_reservation: 256M
+    cpus: 5
+    mem_limit: 5G
+    mem_reservation: 1G
 
   model-inference-rest:
     build:
@@ -40,9 +40,9 @@ services:
       - "CLASS_DICTIONARY_PATH="
     depends_on:
       - database_rest
-    cpus: 0.5
-    mem_limit: 512M
-    mem_reservation: 256M
+    cpus: 5
+    mem_limit: 5G
+    mem_reservation: 1G
 
   database_grpc:
     image: postgres:16-alpine
