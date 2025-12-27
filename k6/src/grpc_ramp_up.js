@@ -1,5 +1,5 @@
 import {grpc_fetch} from "./utils/grpc_utils.js";
-import grpc from "k6/net/grpc/index.d.ts";
+import grpc from "k6/net/grpc";
 
 const client = new grpc.Client();
 client.load(['../../protobuf'], 'citra.proto');
