@@ -3,7 +3,8 @@ syntax = "proto3";
 package dermatoai;
 
 option java_package="com.github.dermatoai";
-option java_outer_classname="Citra";
+option java_outer_classname = "SkinAnalysisProto";
+option java_multiple_files = true;
 
 // Impor Tipe Timestamp
 import "google/protobuf/timestamp.proto";

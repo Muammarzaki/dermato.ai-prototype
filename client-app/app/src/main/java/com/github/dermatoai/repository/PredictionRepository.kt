@@ -2,7 +2,8 @@ package com.github.dermatoai.repository
 
 import android.content.Context
 import android.net.Uri
-import com.github.dermatoai.Citra
+import com.github.dermatoai.AnalyzeSkinRequest
+import com.github.dermatoai.ImageInfo
 import com.github.dermatoai.SkinAnalysisServiceGrpcKt
 import com.github.dermatoai.api.NetworkModule
 import com.github.dermatoai.screen.PredictionHistory
@@ -68,13 +69,13 @@ class PredictionRepository(private val context: Context) {
 
         val requestFlow = flow {
 
-            val info = Citra.ImageInfo.newBuilder()
+            val info = ImageInfo.newBuilder()
                 .setImageType("jpeg")
                 .setUserId("android-user")
                 .build()
 
             emit(
-                Citra.AnalyzeSkinRequest.newBuilder()
+                AnalyzeSkinRequest.newBuilder()
                     .setInfo(info)
                     .build()
             )
@@ -88,7 +89,7 @@ class PredictionRepository(private val context: Context) {
                 val chunkByteString = ByteString.copyFrom(imageBytes, offset, length)
 
                 emit(
-                    Citra.AnalyzeSkinRequest.newBuilder()
+                    AnalyzeSkinRequest.newBuilder()
                         .setChunk(chunkByteString)
                         .build()
                 )

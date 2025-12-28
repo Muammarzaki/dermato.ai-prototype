@@ -1,5 +1,8 @@
+import com.google.protobuf.gradle.proto
+
 plugins {
-    id("com.google.protobuf") version "0.9.6"
+    id("com.google.protobuf")
+    id("com.google.devtools.ksp")
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -22,7 +25,7 @@ android {
 
         buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8088\"")
         buildConfigField("String", "GRPC_HOST", "\"127.0.0.1\"")
-        buildConfigField("int", "GRPC_PORT", "\"8008\"")
+        buildConfigField("int", "GRPC_PORT", "8008")
     }
 
     buildTypes {
@@ -44,6 +47,13 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    sourceSets {
+        getByName("main") {
+            proto {
+                srcDir("src/main/proto")
+            }
+        }
     }
 }
 
@@ -70,6 +80,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.camera.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -81,28 +92,44 @@ dependencies {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.25.1"
+        artifact = "com.google.protobuf:protoc:3.25.5" // ⬅️ UPDATE ke 3.25.5
     }
     plugins {
-        create("java") {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
-        }
         create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.68.1" // ⬅️ UPDATE
         }
         create("grpckt") {
             artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
         }
     }
     generateProtoTasks {
-        all().forEach {
-            it.plugins {
-                create("java") { option("lite") }
-                create("grpc") { option("lite") }
-                create("grpckt")
+        all().forEach { task ->
+            // ⬅️ PENTING: Generate Java code DULU
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
             }
-            it.builtins {
-                create("kotlin") { option("lite") }
+
+            // ⬅️ KEMUDIAN Generate Kotlin DSL
+            task.builtins {
+                create("kotlin") {
+                    option("lite")
+                }
+            }
+
+            // ⬅️ Generate gRPC Java stubs
+            task.plugins {
+                create("grpc") {
+                    option("lite")
+                }
+            }
+
+            // ⬅️ Generate gRPC Kotlin stubs
+            task.plugins {
+                create("grpckt") {
+                    option("lite")
+                }
             }
         }
     }
