@@ -1,12 +1,13 @@
 package com.github.dermatoai.viewmodel
 
+import android.app.Application
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.dermatoai.repository.PredictionRepository
 import com.github.dermatoai.screen.PredictionHistory
 import com.github.dermatoai.state.HomeUiState
 import com.github.dermatoai.state.NetworkProtocol
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,10 +15,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 
-class AnalyzeVM : ViewModel() {
+class AnalyzeVM(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(HomeUiState())
 
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val repository = PredictionRepository(application.applicationContext)
 
     init {
         loadInitialHistory()
@@ -44,10 +47,10 @@ class AnalyzeVM : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val result = when (currentState.selectedProtocol) {
-                    NetworkProtocol.REST -> performRestPrediction(uri)
-                    NetworkProtocol.GRPC -> performGrpcPrediction(uri)
-                }
+                val result = repository.predict(
+                    uri = uri,
+                    protocol = currentState.selectedProtocol
+                )
 
                 _uiState.update { state ->
                     val newHistory = listOf(result) + state.history
@@ -58,30 +61,12 @@ class AnalyzeVM : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = e.message) }
+                e.printStackTrace()
+                _uiState.update {
+                    it.copy(isLoading = false, errorMessage = e.message ?: "Unknown Error")
+                }
             }
         }
-    }
-
-    private suspend fun performRestPrediction(uri: Uri): PredictionHistory {
-        return PredictionHistory(
-            id = (System.currentTimeMillis() % 1000).toInt(),
-            imageName = "img_rest.jpg",
-            result = "Eczema (REST)",
-            confidence = "92.5%",
-            method = "REST"
-        )
-    }
-
-    private suspend fun performGrpcPrediction(uri: Uri): PredictionHistory {
-        delay(1000)
-        return PredictionHistory(
-            id = (System.currentTimeMillis() % 1000).toInt(),
-            imageName = "img_grpc.jpg",
-            result = "Melanoma (gRPC)",
-            confidence = "98.1%",
-            method = "gRPC"
-        )
     }
 
     fun clearError() {

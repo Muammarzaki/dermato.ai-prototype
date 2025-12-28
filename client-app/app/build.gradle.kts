@@ -1,4 +1,5 @@
 plugins {
+    id("com.google.protobuf") version "0.9.6"
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -42,6 +43,16 @@ android {
 }
 
 dependencies {
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.okhttp)
+    implementation(libs.logging.interceptor)
+
+    implementation(libs.grpc.okhttp)
+    implementation(libs.grpc.protobuf.lite)
+    implementation(libs.grpc.kotlin.stub)
+    implementation(libs.protobuf.kotlin.lite)
+
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.androidx.material.icons.extended)
@@ -61,4 +72,33 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.1"
+    }
+    plugins {
+        create("java") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
+        }
+        create("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.60.0"
+        }
+        create("grpckt") {
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
+        }
+    }
+    generateProtoTasks {
+        all().forEach {
+            it.plugins {
+                create("java") { option("lite") }
+                create("grpc") { option("lite") }
+                create("grpckt")
+            }
+            it.builtins {
+                create("kotlin") { option("lite") }
+            }
+        }
+    }
 }
