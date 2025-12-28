@@ -19,6 +19,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8088\"")
+        buildConfigField("String", "GRPC_HOST", "\"127.0.0.1\"")
+        buildConfigField("int", "GRPC_PORT", "\"8008\"")
     }
 
     buildTypes {
@@ -39,6 +43,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
