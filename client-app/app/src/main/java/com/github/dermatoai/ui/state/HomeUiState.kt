@@ -1,7 +1,8 @@
-package com.github.dermatoai.state
+package com.github.dermatoai.ui.state
 
 import android.net.Uri
-import com.github.dermatoai.screen.PredictionHistory
+import com.github.dermatoai.domain.enum.NetworkProtocol
+import com.github.dermatoai.ui.screen.PredictionHistory
 
 data class HomeUiState(
     val selectedProtocol: NetworkProtocol = NetworkProtocol.REST,

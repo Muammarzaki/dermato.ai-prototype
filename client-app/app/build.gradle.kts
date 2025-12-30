@@ -1,8 +1,10 @@
 import com.google.protobuf.gradle.proto
 
 plugins {
+    id("androidx.room")
     id("com.google.protobuf")
     id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -55,9 +57,20 @@ android {
             }
         }
     }
+    room {
+        schemaDirectory("$projectDir/schemas")
+    }
 }
 
 dependencies {
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging)
+
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     implementation(libs.okhttp)

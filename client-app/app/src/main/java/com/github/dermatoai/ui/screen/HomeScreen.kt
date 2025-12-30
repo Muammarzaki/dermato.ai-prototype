@@ -1,4 +1,4 @@
-package com.github.dermatoai.screen
+package com.github.dermatoai.ui.screen
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,8 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.github.dermatoai.state.NetworkProtocol
-import com.github.dermatoai.viewmodel.AnalyzeVM
+import com.github.dermatoai.domain.enum.NetworkProtocol
+import com.github.dermatoai.ui.vm.AnalyzeVM
 
 
 data class PredictionHistory(
@@ -56,7 +56,7 @@ data class PredictionHistory(
     val imageName: String,
     val result: String,
     val confidence: String,
-    val method: String // "REST" atau "gRPC"
+    val method: String
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

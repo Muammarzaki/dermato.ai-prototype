@@ -1,4 +1,4 @@
-package com.github.dermatoai.state
+package com.github.dermatoai.domain.enum
 
 enum class NetworkProtocol {
     REST, GRPC

@@ -1,4 +1,4 @@
-package com.github.dermatoai.api.rest
+package com.github.dermatoai.data.api.rest
 
 import okhttp3.MultipartBody
 import okhttp3.RequestBody

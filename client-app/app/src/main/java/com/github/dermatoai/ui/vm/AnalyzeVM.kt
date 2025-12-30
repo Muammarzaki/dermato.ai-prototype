@@ -1,26 +1,25 @@
-package com.github.dermatoai.viewmodel
+package com.github.dermatoai.ui.vm
 
-import android.app.Application
 import android.net.Uri
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.dermatoai.repository.PredictionRepository
-import com.github.dermatoai.screen.PredictionHistory
-import com.github.dermatoai.state.HomeUiState
-import com.github.dermatoai.state.NetworkProtocol
+import com.github.dermatoai.data.repository.NetworkAnalyzeApiRepository
+import com.github.dermatoai.ui.screen.PredictionHistory
+import com.github.dermatoai.ui.state.HomeUiState
+import com.github.dermatoai.domain.enum.NetworkProtocol
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-
-class AnalyzeVM(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class AnalyzeVM @Inject constructor(private val repository: NetworkAnalyzeApiRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
 
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    private val repository = PredictionRepository(application.applicationContext)
 
     init {
         loadInitialHistory()

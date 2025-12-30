@@ -1,4 +1,4 @@
-package com.github.dermatoai.api.rest
+package com.github.dermatoai.data.api.rest
 
 data class RestPredictionResponse(
     val class_name: String,
