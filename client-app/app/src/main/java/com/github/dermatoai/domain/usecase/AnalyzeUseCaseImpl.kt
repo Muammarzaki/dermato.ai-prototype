@@ -27,7 +27,7 @@ class AnalyzeUseCaseImpl @Inject constructor(
             val uriObj = android.net.Uri.parse(imageUri)
             val result = netRepository.predict(uriObj, protocol)
 
-            localRepository.savePredictionResult(result)
+            localRepository.savePrediction(result)
 
             if (result.disease.confidence < 0.5f) {
                 emit(Resource.Error("Hasil diagnosa kurang meyakinkan (${result.disease.confidence * 100}%)"))
