@@ -52,7 +52,7 @@ import com.github.dermatoai.ui.vm.AnalyzeVM
 
 
 data class PredictionHistory(
-    val id: Int,
+    val id: String,
     val imageName: String,
     val result: String,
     val confidence: String,
