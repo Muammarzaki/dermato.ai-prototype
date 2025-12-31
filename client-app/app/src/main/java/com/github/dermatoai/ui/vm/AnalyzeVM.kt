@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.github.dermatoai.data.repository.NetworkAnalyzeApiRepository
 import com.github.dermatoai.ui.screen.PredictionHistory
 import com.github.dermatoai.ui.state.HomeUiState
-import com.github.dermatoai.domain.enum.NetworkProtocol
+import com.github.dermatoai.domain.common.NetworkProtocol
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

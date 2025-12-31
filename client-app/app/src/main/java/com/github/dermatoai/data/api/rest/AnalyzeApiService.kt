@@ -1,5 +1,6 @@
 package com.github.dermatoai.data.api.rest
 
+import com.github.dermatoai.data.api.dto.AnalyzeApiResponseDTO
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
@@ -13,5 +14,5 @@ interface AnalyzeApiService {
         @Part image: MultipartBody.Part,
 
         @Part("user_id") userId: RequestBody
-    ): RestPredictionResponse
+    ): AnalyzeApiResponseDTO
 }

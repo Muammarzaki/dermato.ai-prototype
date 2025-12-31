@@ -1,7 +1,7 @@
 package com.github.dermatoai.ui.state
 
 import android.net.Uri
-import com.github.dermatoai.domain.enum.NetworkProtocol
+import com.github.dermatoai.domain.common.NetworkProtocol
 import com.github.dermatoai.ui.screen.PredictionHistory
 
 data class HomeUiState(
