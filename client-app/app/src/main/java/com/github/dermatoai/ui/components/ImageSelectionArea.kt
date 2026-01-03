@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ImageSelectionArea(imageUri: Uri?, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
@@ -37,27 +37,27 @@ fun ImageSelectionArea(imageUri: Uri?, onClick: () -> Unit) {
             )
             .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() },
-        contentAlignment = Alignment.Companion.Center
+        contentAlignment = Alignment.Center
     ) {
         if (imageUri != null) {
-            Column(horizontalAlignment = Alignment.Companion.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     Icons.Default.Image,
                     contentDescription = null,
-                    modifier = Modifier.Companion.size(48.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text("Image Selected!", color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            Column(horizontalAlignment = Alignment.Companion.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
                     imageVector = Icons.Default.AddPhotoAlternate,
                     contentDescription = "Upload",
-                    modifier = Modifier.Companion.size(48.dp),
+                    modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.secondary
                 )
-                Spacer(modifier = Modifier.Companion.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("Tap to select image", color = MaterialTheme.colorScheme.secondary)
             }
         }

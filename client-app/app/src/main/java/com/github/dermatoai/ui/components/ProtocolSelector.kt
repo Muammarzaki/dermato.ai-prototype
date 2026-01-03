@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ProtocolSelector(selected: String, onSelected: (String) -> Unit) {
     Row(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10))
             .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -32,23 +32,23 @@ fun ProtocolSelector(selected: String, onSelected: (String) -> Unit) {
         options.forEach { option ->
             val isSelected = selected == option
             val containerColor =
-                if (isSelected) MaterialTheme.colorScheme.primary else Color.Companion.Transparent
+                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
             val contentColor =
                 if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
             Box(
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .weight(1f)
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(10))
                     .background(containerColor)
                     .clickable { onSelected(option) }
                     .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Companion.Center
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = option,
                     color = contentColor,
-                    fontWeight = if (isSelected) FontWeight.Companion.Bold else FontWeight.Companion.Normal
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
             }
         }
