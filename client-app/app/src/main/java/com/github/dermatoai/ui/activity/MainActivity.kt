@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import com.github.dermatoai.ui.screen.HomeScreen
 import com.github.dermatoai.ui.theme.DermatoaiTheme
 import com.github.dermatoai.ui.vm.AnalyzeVM
+import com.github.dermatoai.ui.vm.DataVM
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -14,7 +15,11 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject
-    lateinit var viewModel: AnalyzeVM
+    lateinit var analyzeViewModel: AnalyzeVM
+
+    @Inject
+    lateinit var dataViewModel: DataVM
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,7 +27,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             DermatoaiTheme {
                 HomeScreen(
-                    viewModel = viewModel
+                    analyzeVM = analyzeViewModel,
+                    dataVM = dataViewModel
                 )
             }
         }

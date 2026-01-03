@@ -8,6 +8,7 @@ import com.github.dermatoai.domain.repository.LocalDBRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
+import androidx.core.net.toUri
 
 class AnalyzeUseCaseImpl @Inject constructor(
     private val netRepository: NetworkAnalyzeApiRepository,
@@ -24,7 +25,7 @@ class AnalyzeUseCaseImpl @Inject constructor(
                 throw IllegalArgumentException("URI Gambar tidak valid")
             }
 
-            val uriObj = android.net.Uri.parse(imageUri)
+            val uriObj = imageUri.toUri()
             val result = netRepository.predict(uriObj, protocol)
 
             localRepository.savePrediction(result)
