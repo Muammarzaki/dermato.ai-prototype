@@ -15,8 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.github.dermatoai.ui.dto.PredictionHistory
+import com.github.dermatoai.ui.theme.DermatoaiTheme
 
 @Composable
 fun HistoryItemCard(item: PredictionHistory) {
@@ -54,5 +56,21 @@ fun HistoryItemCard(item: PredictionHistory) {
                 )
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun HistoryItemCardPreview() {
+    DermatoaiTheme {
+        HistoryItemCard(
+            item = PredictionHistory(
+                id = "1",
+                imagePath = "",
+                prediction = "Disease Name",
+                confidence = "90%",
+                method = "REST"
+            ),
+        )
     }
 }

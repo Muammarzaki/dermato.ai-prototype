@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.github.dermatoai.ui.theme.DermatoaiTheme
 
 @Composable
 fun ImageSelectionArea(imageUri: Uri?, onClick: () -> Unit) {
@@ -61,5 +63,13 @@ fun ImageSelectionArea(imageUri: Uri?, onClick: () -> Unit) {
                 Text("Tap to select image", color = MaterialTheme.colorScheme.secondary)
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun ImageSelectionAreaPreview() {
+    DermatoaiTheme {
+        ImageSelectionArea(imageUri = null, onClick = {})
     }
 }
