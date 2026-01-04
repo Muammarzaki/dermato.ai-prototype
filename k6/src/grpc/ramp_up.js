@@ -1,4 +1,4 @@
-import {grpc_fetch} from "./utils/grpc_utils.js";
+import {grpc_fetch} from "../utils/grpc_utils.js";
 import grpc from "k6/net/grpc";
 
 const client = new grpc.Client();

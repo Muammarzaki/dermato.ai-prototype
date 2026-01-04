@@ -16,6 +16,7 @@ export function grpc_fetch(chunkSize, client, imageBin,) {
         check(res, {
             'status is 200': (r) => r.message !== null,
         })
+        console.log(res)
     });
 
     stream.on('error', (err) => {

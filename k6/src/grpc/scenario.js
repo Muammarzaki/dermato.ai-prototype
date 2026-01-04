@@ -1,7 +1,10 @@
-import http from 'k6/http';
-import {check} from "k6";
+import grpc from "k6/net/grpc"
+import {grpc_fetch} from "../utils/grpc_utils.js";
 
-const imageBin = open('../test-images/sample.jpg', 'b');
+const client = new grpc.Client();
+client.load(['../../protobuf'], 'citra.proto');
+
+const imageBin = open('../test-images/sample.jpg', 'b')
 
 export const options = {
     scenarios: {
@@ -28,21 +31,11 @@ export const options = {
     }
 }
 
-export default function () {
-    const url = 'http://localhost:8088/analyze-skin';
-
-    const data = {
-        file: http.file(imageBin, 'sample.jpg', 'image/jpeg'),
-        user_id: 'user-rest-test-k6',
-    };
-
-    const res = http.post(url, data, {
-        timeout: '10s',
-        tags: {protocol: 'rest'},
+export default () => {
+    client.connect('127.0.0.1:8008', {
+        plaintext: true,
+        timeout: "10s"
     });
 
-    check(res, {
-        'status is 200': (r) => r.status === 200,
-    });
-
+    grpc_fetch(8 * 1024 * 1024, client, imageBin);
 }
