@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"model-inference-service/event"
@@ -29,7 +30,7 @@ func NewSkinAnalysisServer(inferenceService *service.InferenceService, event cha
 }
 
 func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSkinServer) error {
-	var imageData []byte
+	var imageBuffer bytes.Buffer
 	var _ *pb.ImageInfo
 
 	for {
@@ -49,19 +50,19 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		case *pb.AnalyzeSkinRequest_Info:
 			_ = payload.Info
 		case *pb.AnalyzeSkinRequest_Chunk:
-			imageData = append(imageData, payload.Chunk...)
+			imageBuffer.Write(payload.Chunk)
 		}
 	}
 
-	if len(imageData) == 0 {
+	if imageBuffer.Len() == 0 {
 		s.chronicEvent <- event.Event{
 			Status: "error",
 			Body:   "Empty image data received",
 		}
 		return status.Error(codes.InvalidArgument, "empty image data")
 	}
-
-	preprocessedInput, err := service.Preprocessing(&imageData)
+	finalBytes := imageBuffer.Bytes()
+	preprocessedInput, err := service.Preprocessing(&finalBytes)
 	if err != nil {
 		s.chronicEvent <- event.Event{
 			Status: "error",
