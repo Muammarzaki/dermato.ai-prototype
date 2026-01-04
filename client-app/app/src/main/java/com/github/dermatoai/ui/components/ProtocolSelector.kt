@@ -11,15 +11,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.github.dermatoai.domain.common.NetworkProtocol
 
 @Composable
-fun ProtocolSelector(selected: String, onSelected: (String) -> Unit) {
+fun ProtocolSelector(selected: NetworkProtocol, onSelected: (NetworkProtocol) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -28,7 +34,7 @@ fun ProtocolSelector(selected: String, onSelected: (String) -> Unit) {
             .padding(4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        val options = listOf("REST", "gRPC")
+        val options = NetworkProtocol.entries
         options.forEach { option ->
             val isSelected = selected == option
             val containerColor =
@@ -46,11 +52,20 @@ fun ProtocolSelector(selected: String, onSelected: (String) -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = option,
+                    text = option.display,
                     color = contentColor,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun ProtocolSelectorPreview() {
+    var selectedProtocol by remember { mutableStateOf(NetworkProtocol.REST) }
+    ProtocolSelector(selected = selectedProtocol, onSelected = {
+        selectedProtocol = it
+    })
 }

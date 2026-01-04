@@ -65,6 +65,8 @@ android {
 dependencies {
     implementation(libs.hilt.android)
     implementation(libs.androidx.paging.compose)
+    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
+    implementation(libs.androidx.navigation.compose)
     ksp(libs.hilt.android.compiler)
 
     implementation(libs.androidx.room.runtime)
