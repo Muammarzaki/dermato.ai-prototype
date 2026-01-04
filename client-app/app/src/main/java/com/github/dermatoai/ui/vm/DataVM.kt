@@ -37,9 +37,9 @@ class DataVM @Inject constructor(
         .cachedIn(viewModelScope)
 
     fun updateFilter(
-        query: String? = null,
-        successOnly: Boolean? = null,
-        protocol: String? = null
+        query: String? = _filterState.value.label,
+        successOnly: Boolean? = _filterState.value.successOnly,
+        protocol: String? = _filterState.value.protocol
     ) {
         val current = _filterState.value
         _filterState.value = current.copy(
