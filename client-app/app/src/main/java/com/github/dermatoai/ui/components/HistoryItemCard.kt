@@ -33,7 +33,7 @@ fun HistoryItemCard(item: PredictionHistory) {
         ) {
             Column {
                 Text(
-                    text = item.result,
+                    text = item.prediction,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

@@ -4,8 +4,8 @@ import com.github.dermatoai.domain.entity.DiagnosisSession
 
 data class PredictionHistory(
     val id: String,
-    val imageName: String,
-    val result: String,
+    val imagePath: String,
+    val prediction: String,
     val confidence: String,
     val method: String
 ) {
@@ -13,8 +13,8 @@ data class PredictionHistory(
         fun mapDomain(domain: DiagnosisSession): PredictionHistory {
             return PredictionHistory(
                 id = domain.id,
-                imageName = domain.image?.imageUri ?: "",
-                result = domain.disease.name,
+                imagePath = domain.image?.imageUri ?: "",
+                prediction = domain.disease.name,
                 confidence = "${(domain.disease.confidence * 100).toInt()}%",
                 method = domain.metrics?.protocolUsed ?: "Unknown",
             )
