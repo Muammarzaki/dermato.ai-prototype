@@ -47,19 +47,21 @@ export function setup() {
     };
 }
 
+const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'citra.proto');
+const restClient = new RestClient(CONFIG.REST_ADDR);
+
 export function warmupGrpc() {
     group('gRPC Warmup', () => {
-        const client = new GrpcClient(CONFIG.GRPC_ADDR, 'citra.proto');
 
         // Simple warmup - don't fail on errors
         try {
-            const connected = client.connect(CONFIG.TIMEOUT);
+            const connected = grpcClient.connect(CONFIG.TIMEOUT);
             if (connected) {
-                client.analyzeSkin(
+                grpcClient.analyzeSkin(
                     CONFIG.IMAGE_DATA,
                     CONFIG.METADATA,
                     CONFIG.CHUNK_SIZE,
-                    () => client.close()
+                    () => grpcClient.close()
                 )
             }
         } catch (error) {
@@ -73,11 +75,10 @@ export function warmupGrpc() {
 
 export function warmupRest() {
     group('REST Warmup', () => {
-        const client = new RestClient(CONFIG.REST_ADDR);
 
         // Simple warmup - don't fail on errors
         try {
-            client.analyzeSkin(
+            restClient.analyzeSkin(
                 CONFIG.IMAGE_DATA,
                 CONFIG.METADATA,
                 CONFIG.TIMEOUT
