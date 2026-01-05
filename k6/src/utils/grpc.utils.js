@@ -60,6 +60,10 @@ export class GrpcClient {
                     typeof r.results[0].confidence === 'number' &&
                     r.results[0].confidence >= 0 &&
                     r.results[0].confidence <= 1,
+
+                'gRPC: all chunks sent': () => chunksCount > 0,
+
+                'gRPC: response received': () => responseReceived,
             });
         });
 
@@ -107,11 +111,6 @@ export class GrpcClient {
             }
 
             stream.end();
-
-            check(null, {
-                'gRPC: all chunks sent': () => chunksCount > 0,
-                'gRPC: response received': () => responseReceived,
-            });
 
             return analysisResult;
 

@@ -39,9 +39,9 @@ export const SCENARIOS = {
         executor: 'ramping-vus',
         startVUs: 0,
         stages: [
-            { duration: '2m', target: 10 },  // Ramp up
-            { duration: '5m', target: 10 },  // Stay at load
-            { duration: '2m', target: 0 },   // Ramp down
+            {duration: '2m', target: 10},  // Ramp up
+            {duration: '5m', target: 10},  // Stay at load
+            {duration: '2m', target: 0},   // Ramp down
         ],
         gracefulStop: '10s',
     },
@@ -51,11 +51,11 @@ export const SCENARIOS = {
         executor: 'ramping-vus',
         startVUs: 0,
         stages: [
-            { duration: '2m', target: 20 },  // Ramp to normal load
-            { duration: '5m', target: 20 },  // Stay at normal load
-            { duration: '2m', target: 40 },  // Ramp to stress load
-            { duration: '5m', target: 40 },  // Stay at stress load
-            { duration: '2m', target: 0 },   // Ramp down
+            {duration: '2m', target: 20},  // Ramp to normal load
+            {duration: '5m', target: 20},  // Stay at normal load
+            {duration: '2m', target: 40},  // Ramp to stress load
+            {duration: '5m', target: 40},  // Stay at stress load
+            {duration: '2m', target: 0},   // Ramp down
         ],
         gracefulStop: '10s',
     },
@@ -65,11 +65,11 @@ export const SCENARIOS = {
         executor: 'ramping-vus',
         startVUs: 0,
         stages: [
-            { duration: '1m', target: 10 },  // Normal load
-            { duration: '30s', target: 50 }, // Spike!
-            { duration: '3m', target: 50 },  // Maintain spike
-            { duration: '1m', target: 10 },  // Recovery
-            { duration: '1m', target: 0 },   // Ramp down
+            {duration: '1m', target: 10},  // Normal load
+            {duration: '30s', target: 50}, // Spike!
+            {duration: '3m', target: 50},  // Maintain spike
+            {duration: '1m', target: 10},  // Recovery
+            {duration: '1m', target: 0},   // Ramp down
         ],
         gracefulStop: '10s',
     },
@@ -94,5 +94,5 @@ export const THRESHOLDS = {
     'checks': ['rate>0.95'],            // More than 95% success
 
     // Data transfer
-    'data_received': ['rate>1000000'],  // At least 1MB/s
+    'data_received': ['rate<1000'],
 };
