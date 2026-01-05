@@ -26,7 +26,7 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(imageData, metadata, chunkSize = 64 * 1024, onClose) {
+    analyzeSkin(imageData, metadata, chunkSize = 64 * 1024) {
         const startTime = Date.now();
         let chunksCount = 0;
         let responseReceived = false;
@@ -42,18 +42,17 @@ export class GrpcClient {
         stream.on('data', (response) => {
             responseReceived = true;
             analysisResult = response;
+            console.log(`gRPC Code: ${JSON.stringify(response.code)}`);
 
             check(response, {
                 'gRPC: response received': (r) => r !== null,
-                'gRPC: has valid message': (r) => r !== undefined,
+                'gRPC: has valid message': (r) => r.code !== undefined,
             });
         });
 
         // Handle errors
         stream.on('error', (err) => {
-            if (err && err.message && !err.message.includes('canceled')) {
-                console.error(`gRPC Error [${err.code}]: ${err.message}`);
-            }
+            console.error(`gRPC Error [${err.code}]: ${err.message}`);
             check(null, {
                 'gRPC: no errors': () => false,
             });
@@ -64,7 +63,6 @@ export class GrpcClient {
             const duration = Date.now() - startTime;
             grpcDuration.add(duration);
             chunksSent.add(chunksCount);
-            onClose()
         });
 
         try {

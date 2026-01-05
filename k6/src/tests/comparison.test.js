@@ -1,9 +1,9 @@
 // src/tests/comparison.test.js
 // This test runs gRPC and REST side-by-side for direct comparison
-import {CONFIG, THRESHOLDS} from '../config/config.js';
-import {GrpcClient} from '../utils/grpc.utils.js';
-import {RestClient} from '../utils/rest.utils.js';
-import {group} from 'k6';
+import { CONFIG, THRESHOLDS } from '../config/config.js';
+import { GrpcClient } from '../utils/grpc.utils.js';
+import { RestClient } from '../utils/rest.utils.js';
+import { group } from 'k6';
 
 export const options = {
     scenarios: {
@@ -13,14 +13,14 @@ export const options = {
             vus: 10,
             duration: '5m',
             exec: 'testGrpc',
-            tags: {protocol: 'grpc'},
+            tags: { protocol: 'grpc' },
         },
         rest_comparison: {
             executor: 'constant-vus',
             vus: 10,
             duration: '5m',
             exec: 'testRest',
-            tags: {protocol: 'rest'},
+            tags: { protocol: 'rest' },
         },
     },
     thresholds: THRESHOLDS,
@@ -35,11 +35,9 @@ export function testGrpc() {
         grpcClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
-            CONFIG.CHUNK_SIZE,
-            function () {
-                grpcClient.close();
-            }
+            CONFIG.CHUNK_SIZE
         );
+        grpcClient.close();
     });
 }
 
