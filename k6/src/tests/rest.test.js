@@ -1,5 +1,5 @@
 // src/tests/rest.test.js
-// Test REST endpoint only
+
 import { CONFIG, SCENARIOS, THRESHOLDS } from '../config/config.js';
 import { RestClient } from '../utils/rest.utils.js';
 import { group, sleep } from 'k6';

@@ -7,7 +7,6 @@ import {group} from 'k6';
 
 export const options = {
     scenarios: {
-        // Same load for both protocols to compare performance
         grpc_comparison: {
             executor: 'constant-vus',
             vus: 10,

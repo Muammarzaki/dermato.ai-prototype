@@ -1,5 +1,5 @@
 // src/tests/grpc.test.js
-// Test gRPC endpoint only
+
 import {CONFIG, SCENARIOS, THRESHOLDS} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {group, sleep} from 'k6';

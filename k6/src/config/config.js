@@ -94,5 +94,5 @@ export const THRESHOLDS = {
     'checks': ['rate>0.95'],            // More than 95% success
 
     // Data transfer
-    'data_received': ['rate<1000'],
+    'data_received': ['rate<=1000'],
 };

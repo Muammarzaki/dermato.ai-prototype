@@ -1,5 +1,5 @@
 // src/tests/warmup.test.js
-// Warmup test untuk memastikan server siap sebelum test utama
+
 import {CONFIG} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {RestClient} from '../utils/rest.utils.js';
