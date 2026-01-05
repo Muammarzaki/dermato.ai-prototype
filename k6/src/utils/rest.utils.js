@@ -1,7 +1,7 @@
 // src/utils/rest.utils.js
 import http from 'k6/http';
-import { check } from 'k6';
-import { Trend } from 'k6/metrics';
+import {check} from 'k6';
+import {Trend} from 'k6/metrics';
 
 // Custom metrics
 const restDuration = new Trend('rest_req_duration', true);
@@ -22,7 +22,7 @@ export class RestClient {
 
         const params = {
             timeout: timeout,
-            tags: { protocol: 'rest' },
+            tags: {protocol: 'rest'},
             headers: {
                 'Accept': 'application/json',
             },
@@ -38,11 +38,25 @@ export class RestClient {
             const duration = Date.now() - startTime;
             restDuration.add(duration);
 
-            check(response, {
-                'REST: status is 200': (r) => r.status === 200,
-                'REST: status is 2xx': (r) => r.status >= 200 && r.status < 300,
-                'REST: has response body': (r) => r.body && r.body.length > 0,
-                'REST: response time < 10s': (r) => r.timings.duration < 10000,
+            console.log(`REST Response: ${JSON.stringify(response.body)}`);
+
+            const body = JSON.parse(response.body);
+            check(body, {
+                'REST: response exists': (r) => r !== null,
+
+                'REST: has analysis_id': (r) =>
+                    typeof r.analysis_id === 'string' && r.analysis_id.length > 0,
+
+                'REST: has results': (r) =>
+                    Array.isArray(r.results) && r.results.length > 0,
+
+                'REST: has label': (r) =>
+                    typeof r.results[0].label === 'string',
+
+                'REST: confidence valid': (r) =>
+                    typeof r.results[0].confidence === 'number' &&
+                    r.results[0].confidence >= 0 &&
+                    r.results[0].confidence <= 1,
             });
 
             let result = null;
@@ -62,7 +76,7 @@ export class RestClient {
             };
 
         } catch (error) {
-            console.error(`REST Request Error: ${error.message}`);
+            console.error(`REST Request Error: ${error}`);
             check(null, {
                 'REST: request successful': () => false,
             });

@@ -3,7 +3,7 @@
 import {CONFIG, SCENARIOS, THRESHOLDS} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {group, sleep} from 'k6';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import {randomIntBetween} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const SCENARIO = __ENV.SCENARIO || 'load';
 
@@ -38,10 +38,9 @@ export function testGrpc() {
         const result = grpcClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
-            CONFIG.CHUNK_SIZE
+            CONFIG.CHUNK_SIZE,
+            () => grpcClient.close()
         );
-
-        grpcClient.close();
 
         // Realistic delay between requests
         sleep(randomIntBetween(1, 3));

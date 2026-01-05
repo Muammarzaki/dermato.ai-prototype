@@ -58,14 +58,13 @@ export function warmupGrpc() {
                 client.analyzeSkin(
                     CONFIG.IMAGE_DATA,
                     CONFIG.METADATA,
-                    CONFIG.CHUNK_SIZE
-                );
+                    CONFIG.CHUNK_SIZE,
+                    () => client.close()
+                )
             }
         } catch (error) {
             // Ignore errors during warmup
             console.log(`Warmup gRPC request error (expected): ${error.message}`);
-        } finally {
-            client.close();
         }
 
         sleep(2);

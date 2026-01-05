@@ -77,14 +77,13 @@ export function testGrpcDetailed(data) {
         const result = client.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
-            CONFIG.CHUNK_SIZE
+            CONFIG.CHUNK_SIZE,
+            () => {
+                timestamps.responseReceived = Date.now();
+                client.close()
+                timestamps.closed = Date.now();
+            }
         );
-
-        timestamps.responseReceived = Date.now();
-
-        // Step 7: Close
-        client.close();
-        timestamps.closed = Date.now();
 
         // Calculate timings
         const timings = {

@@ -1,9 +1,9 @@
 // src/tests/balanced.test.js
-import { CONFIG, SCENARIOS, THRESHOLDS } from '../config/config.js';
-import { GrpcClient } from '../utils/grpc.utils.js';
-import { RestClient } from '../utils/rest.utils.js';
-import { group, sleep } from 'k6';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import {CONFIG, SCENARIOS, THRESHOLDS} from '../config/config.js';
+import {GrpcClient} from '../utils/grpc.utils.js';
+import {RestClient} from '../utils/rest.utils.js';
+import {group, sleep} from 'k6';
+import {randomIntBetween} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 // Choose which scenario to run via environment variable
 // Example: k6 run -e SCENARIO=load src/tests/balanced.test.js
@@ -45,11 +45,9 @@ export function testGrpc() {
         const result = grpcClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
-            CONFIG.CHUNK_SIZE
+            CONFIG.CHUNK_SIZE,
+            () => grpcClient.close()
         );
-
-        grpcClient.close();
-
         // Random sleep between requests (0.5-2 seconds)
         sleep(randomIntBetween(0.5, 2));
     });
