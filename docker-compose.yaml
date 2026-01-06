@@ -1,5 +1,5 @@
 services:
-  model-inference-grpc:
+  skin-analyzer-grpc:
     build:
       context: .
       dockerfile: Dockerfile
@@ -19,9 +19,8 @@ services:
       - database_grpc
     cpus: 5
     mem_limit: 5G
-    mem_reservation: 1G
 
-  model-inference-rest:
+  skin-analyzer-rest:
     build:
       context: .
       dockerfile: Dockerfile
@@ -42,7 +41,6 @@ services:
       - database_rest
     cpus: 5
     mem_limit: 5G
-    mem_reservation: 1G
 
   database_grpc:
     image: postgres:16-alpine

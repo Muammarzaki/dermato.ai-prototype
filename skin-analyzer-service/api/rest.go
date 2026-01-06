@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"mime/multipart"
-	"model-inference-service/event"
-	"model-inference-service/service"
+	"skin-analyzer-service/event"
+	"skin-analyzer-service/service"
 	"time"
 
 	"github.com/gofiber/fiber/v2"

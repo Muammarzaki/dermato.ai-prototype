@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"image"
 	"log"
-	"model-inference-service/model"
+	"skin-analyzer-service/model"
 	"sync"
 
 	_ "image/jpeg"

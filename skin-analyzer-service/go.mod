@@ -1,4 +1,4 @@
-module model-inference-service
+module skin-analyzer-service
 
 go 1.25
 

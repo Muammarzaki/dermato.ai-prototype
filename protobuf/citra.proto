@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package dermatoai;
 
-option go_package = "model-inference-service/gen;citra";
+option go_package = "skin-analyzer-service/gen;citra";
 
 // Impor Tipe Timestamp
 import "google/protobuf/timestamp.proto";

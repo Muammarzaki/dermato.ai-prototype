@@ -1,43 +1,43 @@
 [
   {
-    "name": "akne",
-    "description": "Akne (jerawat) adalah kondisi kulit saat pori-pori tersumbat oleh minyak, sel kulit mati, atau bakteri sehingga menimbulkan komedo, pustula, atau nodul.",
-    "recommendation": "Gunakan pembersih ringan, hindari memencet jerawat, gunakan produk berbahan salicylic acid atau benzoyl peroxide, dan konsultasikan ke dokter kulit jika jerawat meradang atau tidak membaik."
+    "name": "Acne",
+    "description": "Acne (jerawat) adalah kondisi kulit ketika pori-pori tersumbat oleh minyak, sel kulit mati, dan bakteri sehingga menyebabkan komedo, pustula, atau nodul.",
+    "recommendation": "Gunakan pembersih wajah lembut, hindari memencet jerawat, gunakan produk dengan salicylic acid atau benzoyl peroxide, dan konsultasikan ke dokter kulit jika parah."
   },
   {
-    "name": "dermatitis",
-    "description": "Dermatitis adalah peradangan kulit yang menyebabkan gatal, kering, atau ruam kemerahan. Bisa dipicu alergi, iritasi, atau faktor genetik.",
-    "recommendation": "Hindari iritan, gunakan pelembap secara rutin, dan gunakan krim anti-inflamasi sesuai anjuran dokter."
+    "name": "Actinic Cheilitis",
+    "description": "Actinic cheilitis adalah kondisi prakanker pada bibir akibat paparan sinar matahari jangka panjang, ditandai dengan bibir kering, pecah-pecah, dan perubahan warna.",
+    "recommendation": "Gunakan lip balm dengan SPF, hindari paparan matahari langsung, dan periksakan ke dokter kulit untuk evaluasi lanjutan."
   },
   {
-    "name": "melanoma",
-    "description": "Melanoma adalah jenis kanker kulit yang berasal dari sel melanosit dan dapat menyebar dengan cepat bila tidak ditangani.",
-    "recommendation": "Segera periksakan ke dokter kulit atau onkologis jika ada tahi lalat dengan perubahan bentuk, warna, atau ukuran. Penanganan medis wajib."
+    "name": "Basal Cell Carcinoma",
+    "description": "Basal cell carcinoma adalah jenis kanker kulit yang paling umum, tumbuh lambat, dan sering muncul pada area yang sering terpapar matahari.",
+    "recommendation": "Segera konsultasi ke dokter kulit. Penanganan biasanya melalui pembedahan atau terapi medis."
   },
   {
-    "name": "psoriasis",
-    "description": "Psoriasis adalah penyakit autoimun yang menyebabkan regenerasi kulit terlalu cepat sehingga muncul sisik tebal berwarna putih keperakan.",
-    "recommendation": "Gunakan pelembap, hindari pemicu seperti stres, dan konsultasikan untuk terapi seperti krim steroid, fototerapi, atau obat sistemik."
+    "name": "Bullous Disease",
+    "description": "Bullous disease adalah kelompok penyakit kulit yang ditandai dengan lepuhan besar berisi cairan akibat gangguan autoimun atau infeksi.",
+    "recommendation": "Hindari pecahnya lepuhan dan segera konsultasikan ke dokter untuk pengobatan medis yang tepat."
   },
   {
-    "name": "rosacea",
-    "description": "Rosacea adalah kondisi kronis yang menyebabkan wajah memerah, muncul benjolan kecil, dan sensitivitas kulit.",
-    "recommendation": "Hindari pemicu seperti panas berlebih, alkohol, dan makanan pedas. Gunakan sunscreen dan konsultasikan untuk terapi topikal atau oral."
+    "name": "Cacar Air",
+    "description": "Cacar air adalah infeksi virus varicella-zoster yang menyebabkan ruam lepuh berisi cairan disertai demam dan rasa gatal.",
+    "recommendation": "Istirahat cukup, hindari menggaruk ruam, gunakan obat pereda gatal, dan konsultasikan ke dokter bila gejala berat."
   },
   {
-    "name": "kurap",
-    "description": "Kurap (tinea) adalah infeksi jamur yang menyebabkan bercak bulat, bersisik, dan gatal pada kulit.",
-    "recommendation": "Gunakan krim antijamur seperti terbinafine atau clotrimazole. Jaga area tetap kering dan bersih."
+    "name": "Eczema",
+    "description": "Eczema adalah peradangan kulit kronis yang menyebabkan kulit kering, gatal, kemerahan, dan terkadang bersisik.",
+    "recommendation": "Gunakan pelembap secara rutin, hindari iritan, dan gunakan krim antiinflamasi sesuai anjuran dokter."
   },
   {
-    "name": "urtikaria",
-    "description": "Urtikaria (hives/biduran) adalah reaksi kulit yang muncul sebagai bentol merah dan gatal, biasanya akibat alergi.",
-    "recommendation": "Hindari pemicu, konsumsi antihistamin bila perlu, dan konsultasikan dokter jika sering kambuh atau berlangsung lama."
+    "name": "Skin Cancer",
+    "description": "Skin cancer adalah pertumbuhan sel kulit yang tidak normal dan dapat menyebar ke jaringan lain jika tidak ditangani.",
+    "recommendation": "Lakukan pemeriksaan rutin kulit, gunakan sunscreen, dan segera konsultasi medis jika terdapat lesi mencurigakan."
   },
   {
-    "name": "vitiligo",
-    "description": "Vitiligo adalah kondisi hilangnya pigmen kulit sehingga muncul bercak putih.",
-    "recommendation": "Gunakan sunscreen untuk melindungi area tanpa pigmen. Konsultasi diperlukan untuk opsi terapi seperti fototerapi atau topikal tertentu."
+    "name": "Urticaria Hives",
+    "description": "Urticaria hives (biduran) adalah reaksi kulit yang muncul sebagai bentol merah gatal akibat alergi atau faktor lain.",
+    "recommendation": "Hindari pemicu alergi, konsumsi antihistamin bila diperlukan, dan konsultasikan ke dokter jika sering kambuh."
   }
 ]
 

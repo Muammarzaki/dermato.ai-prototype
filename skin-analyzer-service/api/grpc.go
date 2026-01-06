@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"model-inference-service/event"
-	"model-inference-service/service"
+	"skin-analyzer-service/event"
+	"skin-analyzer-service/service"
 	"time"
 
-	pb "model-inference-service/gen"
+	pb "skin-analyzer-service/gen"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"

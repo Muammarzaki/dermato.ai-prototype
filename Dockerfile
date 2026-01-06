@@ -4,7 +4,7 @@ FROM golang:1.25.5-bookworm AS builder
 WORKDIR /app
 
 # Copy the source code
-COPY ./model-inference-service .
+COPY ./skin-analyzer-service .
 
 # Download dependencies
 RUN go mod download
