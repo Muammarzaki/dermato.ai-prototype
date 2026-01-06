@@ -1,8 +1,8 @@
 // src/utils/rest.utils.js
 import http from 'k6/http';
-import { check } from 'k6';
-import { Trend, Counter, Rate, Gauge } from 'k6/metrics';
-import { calcBytes } from './bytes.js';
+import {check} from 'k6';
+import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
+import {calcBytes} from './bytes.js';
 
 // ================= METRICS =================
 const restReqDuration = new Trend('rest_req_duration', true);
@@ -48,7 +48,11 @@ export class RestClient {
             const res = http.post(
                 `${this.baseUrl}/analyze-skin`,
                 formData,
-                { timeout, tags: { protocol: 'rest' } }
+                {
+                    timeout, tags: {protocol: 'rest'}, headers: {
+                        'Connection': 'close'
+                    }
+                }
             );
 
             restReqDuration.add(Date.now() - start);

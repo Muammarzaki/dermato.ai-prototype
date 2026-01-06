@@ -1,9 +1,9 @@
 // src/utils/grpc.utils.js
 import grpc from 'k6/net/grpc';
-import { check } from 'k6';
-import { b64encode } from 'k6/encoding';
-import { Trend, Counter, Rate, Gauge } from 'k6/metrics';
-import { calcBytes } from './bytes.js';
+import {check} from 'k6';
+import {b64encode} from 'k6/encoding';
+import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
+import {calcBytes} from './bytes.js';
 
 // ===================== METRICS =====================
 const grpcReqDuration = new Trend('grpc_req_duration', true);
@@ -34,7 +34,7 @@ export class GrpcClient {
 
     connect(timeout = '30s') {
         const start = Date.now();
-        this.client.connect(this.address, { plaintext: true, timeout });
+        this.client.connect(this.address, {plaintext: true, timeout});
         grpcConnectingTime.add(Date.now() - start);
     }
 
@@ -42,7 +42,7 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(imageData, metadata, chunkSize = 64 * 1024, onClose) {
+    analyzeSkin(imageData, metadata, chunkSize = 64 * 1024, onClose = null) {
         const requestStart = Date.now();
         const streamStart = Date.now();
 
@@ -61,7 +61,7 @@ export class GrpcClient {
         const stream = new grpc.Stream(
             this.client,
             'dermatoai.SkinAnalysisService/AnalyzeSkin',
-            { tags: { protocol: 'grpc' } }
+            {tags: {protocol: 'grpc'}}
         );
 
         // ================= RESPONSE =================
@@ -137,7 +137,7 @@ export class GrpcClient {
                 const end = Math.min(offset + chunkSize, imageData.byteLength);
                 const chunk = imageData.slice(offset, end);
 
-                stream.write({ chunk: b64encode(chunk) });
+                stream.write({chunk: b64encode(chunk)});
 
                 const size = end - offset;
                 bytesSent += size;
@@ -154,7 +154,10 @@ export class GrpcClient {
             hasError = true;
             grpcReqFailed.add(1);
             console.error(`gRPC Send Error: ${e.message}`);
-            try { stream.end(); } catch (_) {}
+            try {
+                stream.end();
+            } catch (_) {
+            }
         }
     }
 }
