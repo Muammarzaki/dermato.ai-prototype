@@ -42,7 +42,7 @@ export function testGrpc() {
     group('gRPC Analysis', () => {
         grpcClient.connect(CONFIG.TIMEOUT);
 
-        const result = grpcClient.analyzeSkin(
+        grpcClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
             CONFIG.CHUNK_SIZE,
@@ -55,7 +55,7 @@ export function testGrpc() {
 
 export function testRest() {
     group('REST Analysis', () => {
-        const result = restClient.analyzeSkin(
+        restClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
             CONFIG.TIMEOUT

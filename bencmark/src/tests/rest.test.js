@@ -1,9 +1,9 @@
 // src/tests/rest.test.js
 
-import { CONFIG, SCENARIOS, THRESHOLDS } from '../config/config.js';
-import { RestClient } from '../utils/rest.utils.js';
-import { group, sleep } from 'k6';
-import { randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import {CONFIG, SCENARIOS, THRESHOLDS} from '../config/config.js';
+import {RestClient} from '../utils/rest.utils.js';
+import {group, sleep} from 'k6';
+import {randomIntBetween} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const SCENARIO = __ENV.SCENARIO || 'load';
 
@@ -27,12 +27,12 @@ export function setup() {
     console.log(`Running ${SCENARIO} scenario - REST only`);
     console.log(`REST Address: ${CONFIG.REST_ADDR}`);
     console.log(`Image size: ${CONFIG.IMAGE_DATA.byteLength} bytes`);
-    return { startTime: Date.now() };
+    return {startTime: Date.now()};
 }
 
 export function testRest() {
     group('REST Skin Analysis', () => {
-        const result = restClient.analyzeSkin(
+        restClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
             CONFIG.METADATA,
             CONFIG.TIMEOUT
