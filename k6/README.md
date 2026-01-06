@@ -15,8 +15,7 @@ k6/
 │   ├── tests/
 │   │   ├── warmup.test.js            # Warmup server before testing
 │   │   ├── balanced.test.js          # Balanced gRPC & REST tests
-│   │   ├── comparison.test.js        # Direct protocol comparison
-│   │   └── detailed.analysis.test.js # Detailed timing breakdown
+│   │   └── comparison.test.js        # Direct protocol comparison
 ├── test-images/
 │   └── sample.jpg                    # Test image
 ├── protobuf/

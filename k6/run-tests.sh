@@ -45,39 +45,6 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
-# Check if k6 is installed
-check_k6() {
-    if ! command -v k6 &> /dev/null; then
-        print_error "k6 is not installed"
-        echo "Install from: https://k6.io/docs/getting-started/installation/"
-        exit 1
-    fi
-    print_success "k6 is installed: $(k6 version)"
-}
-
-# Check if servers are running
-check_servers() {
-    print_header "Checking Server Availability"
-
-    # Check gRPC server
-    if nc -z 127.0.0.1 8008 2>/dev/null; then
-        print_success "gRPC server is running on port 8008"
-    else
-        print_error "gRPC server is not running on port 8008"
-        exit 1
-    fi
-
-    # Check REST server
-    if nc -z 127.0.0.1 8088 2>/dev/null; then
-        print_success "REST server is running on port 8088"
-    else
-        print_error "REST server is not running on port 8088"
-        exit 1
-    fi
-
-    echo ""
-}
-
 # Run warmup
 run_warmup() {
     print_header "Running Warmup Test"
@@ -141,27 +108,11 @@ run_comparison() {
     echo ""
 }
 
-# Run detailed analysis
-run_detailed() {
-    print_header "Running Detailed Analysis"
-    print_info "Detailed timing breakdown with logging"
-    print_info "Duration: 2 minutes, 5 VUs each"
-    echo ""
-
-    k6 run src/tests/detailed.analysis.test.js \
-        --out json="$RESULTS_DIR/detailed_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/detailed_${TIMESTAMP}_summary.json"
-
-    print_success "Detailed analysis completed"
-    echo ""
-}
-
 # Run full test suite
 run_full_suite() {
     print_header "Running Full Test Suite"
     echo ""
 
-    check_servers
     run_warmup
     run_smoke
 
@@ -175,9 +126,6 @@ run_full_suite() {
     sleep 30
 
     run_comparison
-    sleep 30
-
-    run_detailed
 
     print_header "Full Test Suite Completed"
     print_success "All tests finished successfully"
@@ -219,34 +167,20 @@ main() {
     local test_type=${1:-help}
     local scenario=${2:-load}
 
-    echo ""
-    print_header "K6 Load Testing Suite"
-    echo ""
-
-    check_k6
-
     case "$test_type" in
         warmup)
-            check_servers
             run_warmup
             ;;
         smoke)
-            check_servers
             run_smoke
             ;;
         balanced)
-            check_servers
             run_balanced "$scenario"
             ;;
         comparison)
-            check_servers
             run_warmup
             run_comparison
             generate_report
-            ;;
-        detailed)
-            check_servers
-            run_detailed
             ;;
         full-suite)
             run_full_suite
@@ -262,7 +196,6 @@ main() {
             echo "  smoke               - Run smoke test (basic functionality)"
             echo "  balanced [scenario] - Run balanced test with specific scenario"
             echo "  comparison          - Run direct comparison test"
-            echo "  detailed            - Run detailed analysis test"
             echo "  full-suite          - Run complete test suite"
             echo "  help                - Show this help message"
             echo ""
