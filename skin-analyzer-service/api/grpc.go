@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"skin-analyzer-service/event"
@@ -31,7 +32,7 @@ func NewSkinAnalysisServer(inferenceService *service.InferenceService, event cha
 
 func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSkinServer) error {
 	var imageBuffer bytes.Buffer
-	var _ *pb.ImageInfo
+	var imageInfo *pb.ImageInfo
 
 	for {
 		req, err := stream.Recv()
@@ -48,7 +49,7 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 
 		switch payload := req.RequestPayload.(type) {
 		case *pb.AnalyzeSkinRequest_Info:
-			_ = payload.Info
+			imageInfo = payload.Info
 		case *pb.AnalyzeSkinRequest_Chunk:
 			imageBuffer.Write(payload.Chunk)
 		}
@@ -62,6 +63,43 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		return status.Error(codes.InvalidArgument, "empty image data")
 	}
 	finalBytes := imageBuffer.Bytes()
+	serverChecksum := sha256.Sum256(finalBytes)
+
+	if imageInfo == nil || len(imageInfo.ClientSha256) == 0 {
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   "client checksum is required for data integrity validation",
+		}
+		return status.Error(
+			codes.InvalidArgument,
+			"client checksum is required for data integrity validation",
+		)
+	}
+
+	if len(imageInfo.ClientSha256) != sha256.Size {
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   "invalid sha256 checksum length",
+		}
+		return status.Error(
+			codes.InvalidArgument,
+			"invalid sha256 checksum length",
+		)
+	}
+
+	if !bytes.Equal(serverChecksum[:], imageInfo.ClientSha256) {
+		message := fmt.Sprintf(
+			"checksum mismatch: client=%x server=%x",
+			imageInfo.ClientSha256,
+			serverChecksum,
+		)
+		s.chronicEvent <- event.Event{
+			Status: "error",
+			Body:   message,
+		}
+		return status.Error(codes.DataLoss, message)
+	}
+
 	preprocessedInput, err := service.Preprocessing(&finalBytes)
 	if err != nil {
 		s.chronicEvent <- event.Event{
@@ -94,6 +132,7 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 	response := &pb.AnalyzeSkinResponse{
 		AnalysisId:        uuid.New().String(),
 		AnalysisTimestamp: timestamppb.New(time.Now()),
+		ServerSha256:      serverChecksum[:],
 		Results:           analysisResults,
 	}
 

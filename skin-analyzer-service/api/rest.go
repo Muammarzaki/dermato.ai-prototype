@@ -1,7 +1,11 @@
 package api
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"skin-analyzer-service/event"
@@ -13,9 +17,10 @@ import (
 )
 
 type FileUploadRequest struct {
-	UserID    string            `json:"user_id"`
-	ImageType string            `json:"image_type"`
-	Metadata  map[string]string `json:"metadata"`
+	UserID       string            `json:"user_id"`
+	ImageType    string            `json:"image_type"`
+	ClientSha256 string            `json:"client_sha256"`
+	Metadata     map[string]string `json:"metadata"`
 }
 
 type AnalysisResult struct {
@@ -28,6 +33,7 @@ type AnalysisResult struct {
 type FileUploadResponse struct {
 	AnalysisID        string           `json:"analysis_id"`
 	AnalysisTimestamp time.Time        `json:"analysis_timestamp"`
+	ServerSha256      string           `json:"server_sha256"`
 	Results           []AnalysisResult `json:"results"`
 }
 
@@ -112,6 +118,57 @@ func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent c
 			})
 		}
 
+		serverChecksum := sha256.Sum256(buffer)
+
+		clientChecksumHex := c.FormValue("client_sha256")
+		if clientChecksumHex == "" {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "client checksum is required for data integrity validation",
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "client checksum is required for data integrity validation",
+			})
+		}
+
+		clientChecksum, err := hex.DecodeString(clientChecksumHex)
+		if err != nil {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "invalid checksum format: " + err.Error(),
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "invalid checksum format",
+				"details": err.Error(),
+			})
+		}
+
+		if len(clientChecksum) != sha256.Size {
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   "invalid sha256 checksum length",
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "invalid sha256 checksum length",
+			})
+		}
+
+		if !bytes.Equal(serverChecksum[:], clientChecksum) {
+			message := fmt.Sprintf(
+				"checksum mismatch: client=%x server=%x",
+				clientChecksum,
+				serverChecksum,
+			)
+			chronicEvent <- event.Event{
+				Status: "error",
+				Body:   message,
+			}
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   message,
+				"details": "Client and server checksums do not match",
+			})
+		}
+
 		preprocessedInput, err := service.Preprocessing(&buffer)
 		if err != nil {
 			chronicEvent <- event.Event{
@@ -150,6 +207,7 @@ func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent c
 		response := FileUploadResponse{
 			AnalysisID:        uuid.New().String(),
 			AnalysisTimestamp: time.Now(),
+			ServerSha256:      hex.EncodeToString(serverChecksum[:]),
 			Results:           analysisResults,
 		}
 
