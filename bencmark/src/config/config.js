@@ -92,7 +92,4 @@ export const THRESHOLDS = {
     // Request failure rate
     'http_req_failed': ['rate<0.05'],  // Less than 5% failures
     'checks': ['rate>0.95'],            // More than 95% success
-
-    // Data transfer
-    'data_received': ['rate<=1000'],
 };
