@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v4.25.7
-// source: citra.proto
+// source: skin_analyzer.proto
 
 package citra
 
@@ -19,24 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SkinAnalysisService_AnalyzeSkin_FullMethodName = "/dermatoai.SkinAnalysisService/AnalyzeSkin"
+	SkinAnalysisService_AnalyzeSkin_FullMethodName = "/skin_analyzer.SkinAnalysisService/AnalyzeSkin"
 )
 
 // SkinAnalysisServiceClient is the client API for SkinAnalysisService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Layanan ini mencerminkan endpoint POST /analyze-skin.
-// Ini menggunakan gRPC client-side streaming untuk menangani
-// unggahan gambar beresolusi tinggi yang mungkin melebihi
-// batas ukuran pesan gRPC default.
 type SkinAnalysisServiceClient interface {
-	// Klien akan mengirimkan stream pesan:
-	// 1. Pesan AnalyzeSkinRequest pertama HARUS berisi 'info'.
-	// 2. Pesan-pesan berikutnya HARUS berisi 'chunk' (data byte gambar).
-	// 3. Klien menutup stream setelah semua chunk dikirim.
-	// Server akan merakit kembali gambar, memprosesnya dengan CNN,
-	// lalu mengirimkan satu AnalyzeSkinResponse.
 	AnalyzeSkin(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[AnalyzeSkinRequest, AnalyzeSkinResponse], error)
 }
 
@@ -64,18 +53,7 @@ type SkinAnalysisService_AnalyzeSkinClient = grpc.ClientStreamingClient[AnalyzeS
 // SkinAnalysisServiceServer is the server API for SkinAnalysisService service.
 // All implementations must embed UnimplementedSkinAnalysisServiceServer
 // for forward compatibility.
-//
-// Layanan ini mencerminkan endpoint POST /analyze-skin.
-// Ini menggunakan gRPC client-side streaming untuk menangani
-// unggahan gambar beresolusi tinggi yang mungkin melebihi
-// batas ukuran pesan gRPC default.
 type SkinAnalysisServiceServer interface {
-	// Klien akan mengirimkan stream pesan:
-	// 1. Pesan AnalyzeSkinRequest pertama HARUS berisi 'info'.
-	// 2. Pesan-pesan berikutnya HARUS berisi 'chunk' (data byte gambar).
-	// 3. Klien menutup stream setelah semua chunk dikirim.
-	// Server akan merakit kembali gambar, memprosesnya dengan CNN,
-	// lalu mengirimkan satu AnalyzeSkinResponse.
 	AnalyzeSkin(grpc.ClientStreamingServer[AnalyzeSkinRequest, AnalyzeSkinResponse]) error
 	mustEmbedUnimplementedSkinAnalysisServiceServer()
 }
@@ -122,7 +100,7 @@ type SkinAnalysisService_AnalyzeSkinServer = grpc.ClientStreamingServer[AnalyzeS
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SkinAnalysisService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "dermatoai.SkinAnalysisService",
+	ServiceName: "skin_analyzer.SkinAnalysisService",
 	HandlerType: (*SkinAnalysisServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
@@ -132,5 +110,5 @@ var SkinAnalysisService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "citra.proto",
+	Metadata: "skin_analyzer.proto",
 }

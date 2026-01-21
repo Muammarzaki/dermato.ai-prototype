@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v4.25.7
-// source: citra.proto
+// source: skin_analyzer.proto
 
 package citra
 
@@ -22,24 +22,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Pesan ImageInfo dikirim sebagai bagian pertama dari stream
-// untuk menyediakan metadata tentang gambar yang akan datang.
 type ImageInfo struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Opsional: ID pengguna yang meminta analisis
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Tipe file gambar, mis. "jpeg", "png", "webp".
-	// Ini sangat penting agar server tahu cara mendekode byte stream.
-	ImageType string `protobuf:"bytes,2,opt,name=image_type,json=imageType,proto3" json:"image_type,omitempty"`
-	// Opsional: Metadata tambahan apa pun yang mungkin diperlukan model
-	Metadata      map[string]string `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ImageType     string                 `protobuf:"bytes,2,opt,name=image_type,json=imageType,proto3" json:"image_type,omitempty"`
+	ClientSha256  []byte                 `protobuf:"bytes,3,opt,name=client_sha256,json=clientSha256,proto3" json:"client_sha256,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImageInfo) Reset() {
 	*x = ImageInfo{}
-	mi := &file_citra_proto_msgTypes[0]
+	mi := &file_skin_analyzer_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -51,7 +46,7 @@ func (x *ImageInfo) String() string {
 func (*ImageInfo) ProtoMessage() {}
 
 func (x *ImageInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_citra_proto_msgTypes[0]
+	mi := &file_skin_analyzer_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,7 +59,7 @@ func (x *ImageInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageInfo.ProtoReflect.Descriptor instead.
 func (*ImageInfo) Descriptor() ([]byte, []int) {
-	return file_citra_proto_rawDescGZIP(), []int{0}
+	return file_skin_analyzer_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ImageInfo) GetUserId() string {
@@ -81,6 +76,13 @@ func (x *ImageInfo) GetImageType() string {
 	return ""
 }
 
+func (x *ImageInfo) GetClientSha256() []byte {
+	if x != nil {
+		return x.ClientSha256
+	}
+	return nil
+}
+
 func (x *ImageInfo) GetMetadata() map[string]string {
 	if x != nil {
 		return x.Metadata
@@ -88,12 +90,8 @@ func (x *ImageInfo) GetMetadata() map[string]string {
 	return nil
 }
 
-// Pesan ini di-stream dari klien ke server.
 type AnalyzeSkinRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// 'oneof' memastikan bahwa setiap pesan hanya berisi
-	// metadata (di awal) ATAU potongan gambar.
-	//
 	// Types that are valid to be assigned to RequestPayload:
 	//
 	//	*AnalyzeSkinRequest_Info
@@ -105,7 +103,7 @@ type AnalyzeSkinRequest struct {
 
 func (x *AnalyzeSkinRequest) Reset() {
 	*x = AnalyzeSkinRequest{}
-	mi := &file_citra_proto_msgTypes[1]
+	mi := &file_skin_analyzer_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -117,7 +115,7 @@ func (x *AnalyzeSkinRequest) String() string {
 func (*AnalyzeSkinRequest) ProtoMessage() {}
 
 func (x *AnalyzeSkinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_citra_proto_msgTypes[1]
+	mi := &file_skin_analyzer_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -130,7 +128,7 @@ func (x *AnalyzeSkinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeSkinRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeSkinRequest) Descriptor() ([]byte, []int) {
-	return file_citra_proto_rawDescGZIP(), []int{1}
+	return file_skin_analyzer_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AnalyzeSkinRequest) GetRequestPayload() isAnalyzeSkinRequest_RequestPayload {
@@ -163,35 +161,30 @@ type isAnalyzeSkinRequest_RequestPayload interface {
 }
 
 type AnalyzeSkinRequest_Info struct {
-	Info *ImageInfo `protobuf:"bytes,1,opt,name=info,proto3,oneof"` // Harus dikirim di pesan pertama
+	Info *ImageInfo `protobuf:"bytes,1,opt,name=info,proto3,oneof"`
 }
 
 type AnalyzeSkinRequest_Chunk struct {
-	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"` // Data gambar mentah, dikirim dalam potongan
+	Chunk []byte `protobuf:"bytes,2,opt,name=chunk,proto3,oneof"`
 }
 
 func (*AnalyzeSkinRequest_Info) isAnalyzeSkinRequest_RequestPayload() {}
 
 func (*AnalyzeSkinRequest_Chunk) isAnalyzeSkinRequest_RequestPayload() {}
 
-// Satu hasil prediksi dari model CNN.
 type AnalysisResult struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Nama label/kelas yang diprediksi (mis. "jerawat", "cacar_air", "normal")
-	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
-	// Skor keyakinan (confidence) dari model (mis. 0.0 - 1.0)
-	Confidence float32 `protobuf:"fixed32,2,opt,name=confidence,proto3" json:"confidence,omitempty"`
-	// Opsional: Deskripsi singkat tentang kondisi yang terdeteksi
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Opsional: Rekomendasi atau langkah selanjutnya
-	Recommendation string `protobuf:"bytes,4,opt,name=recommendation,proto3" json:"recommendation,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Label          string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	Confidence     float32                `protobuf:"fixed32,2,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Recommendation string                 `protobuf:"bytes,4,opt,name=recommendation,proto3" json:"recommendation,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AnalysisResult) Reset() {
 	*x = AnalysisResult{}
-	mi := &file_citra_proto_msgTypes[2]
+	mi := &file_skin_analyzer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +196,7 @@ func (x *AnalysisResult) String() string {
 func (*AnalysisResult) ProtoMessage() {}
 
 func (x *AnalysisResult) ProtoReflect() protoreflect.Message {
-	mi := &file_citra_proto_msgTypes[2]
+	mi := &file_skin_analyzer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +209,7 @@ func (x *AnalysisResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalysisResult.ProtoReflect.Descriptor instead.
 func (*AnalysisResult) Descriptor() ([]byte, []int) {
-	return file_citra_proto_rawDescGZIP(), []int{2}
+	return file_skin_analyzer_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AnalysisResult) GetLabel() string {
@@ -247,24 +240,19 @@ func (x *AnalysisResult) GetRecommendation() string {
 	return ""
 }
 
-// Respons tunggal yang dikirim server setelah menerima
-// dan menganalisis seluruh gambar.
 type AnalyzeSkinResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// ID unik yang dihasilkan server untuk analisis ini
-	AnalysisId string `protobuf:"bytes,1,opt,name=analysis_id,json=analysisId,proto3" json:"analysis_id,omitempty"`
-	// Waktu kapan analisis selesai diproses
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	AnalysisId        string                 `protobuf:"bytes,1,opt,name=analysis_id,json=analysisId,proto3" json:"analysis_id,omitempty"`
 	AnalysisTimestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=analysis_timestamp,json=analysisTimestamp,proto3" json:"analysis_timestamp,omitempty"`
-	// Daftar hasil prediksi dari model
-	// (mungkin 1 hasil teratas, atau 3 teratas, dst.)
-	Results       []*AnalysisResult `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ServerSha256      []byte                 `protobuf:"bytes,4,opt,name=server_sha256,json=serverSha256,proto3" json:"server_sha256,omitempty"`
+	Results           []*AnalysisResult      `protobuf:"bytes,5,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AnalyzeSkinResponse) Reset() {
 	*x = AnalyzeSkinResponse{}
-	mi := &file_citra_proto_msgTypes[3]
+	mi := &file_skin_analyzer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +264,7 @@ func (x *AnalyzeSkinResponse) String() string {
 func (*AnalyzeSkinResponse) ProtoMessage() {}
 
 func (x *AnalyzeSkinResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_citra_proto_msgTypes[3]
+	mi := &file_skin_analyzer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +277,7 @@ func (x *AnalyzeSkinResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeSkinResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeSkinResponse) Descriptor() ([]byte, []int) {
-	return file_citra_proto_rawDescGZIP(), []int{3}
+	return file_skin_analyzer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AnalyzeSkinResponse) GetAnalysisId() string {
@@ -306,6 +294,13 @@ func (x *AnalyzeSkinResponse) GetAnalysisTimestamp() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AnalyzeSkinResponse) GetServerSha256() []byte {
+	if x != nil {
+		return x.ServerSha256
+	}
+	return nil
+}
+
 func (x *AnalyzeSkinResponse) GetResults() []*AnalysisResult {
 	if x != nil {
 		return x.Results
@@ -313,21 +308,22 @@ func (x *AnalyzeSkinResponse) GetResults() []*AnalysisResult {
 	return nil
 }
 
-var File_citra_proto protoreflect.FileDescriptor
+var File_skin_analyzer_proto protoreflect.FileDescriptor
 
-const file_citra_proto_rawDesc = "" +
+const file_skin_analyzer_proto_rawDesc = "" +
 	"\n" +
-	"\vcitra.proto\x12\tdermatoai\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x01\n" +
+	"\x13skin_analyzer.proto\x12\rskin_analyzer\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe9\x01\n" +
 	"\tImageInfo\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"image_type\x18\x02 \x01(\tR\timageType\x12>\n" +
-	"\bmetadata\x18\x03 \x03(\v2\".dermatoai.ImageInfo.MetadataEntryR\bmetadata\x1a;\n" +
+	"image_type\x18\x02 \x01(\tR\timageType\x12#\n" +
+	"\rclient_sha256\x18\x03 \x01(\fR\fclientSha256\x12B\n" +
+	"\bmetadata\x18\x04 \x03(\v2&.skin_analyzer.ImageInfo.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
-	"\x12AnalyzeSkinRequest\x12*\n" +
-	"\x04info\x18\x01 \x01(\v2\x14.dermatoai.ImageInfoH\x00R\x04info\x12\x16\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"o\n" +
+	"\x12AnalyzeSkinRequest\x12.\n" +
+	"\x04info\x18\x01 \x01(\v2\x18.skin_analyzer.ImageInfoH\x00R\x04info\x12\x16\n" +
 	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunkB\x11\n" +
 	"\x0frequest_payload\"\x90\x01\n" +
 	"\x0eAnalysisResult\x12\x14\n" +
@@ -336,43 +332,44 @@ const file_citra_proto_rawDesc = "" +
 	"confidence\x18\x02 \x01(\x02R\n" +
 	"confidence\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12&\n" +
-	"\x0erecommendation\x18\x04 \x01(\tR\x0erecommendation\"\xb6\x01\n" +
+	"\x0erecommendation\x18\x04 \x01(\tR\x0erecommendation\"\xdf\x01\n" +
 	"\x13AnalyzeSkinResponse\x12\x1f\n" +
 	"\vanalysis_id\x18\x01 \x01(\tR\n" +
 	"analysisId\x12I\n" +
-	"\x12analysis_timestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x11analysisTimestamp\x123\n" +
-	"\aresults\x18\x03 \x03(\v2\x19.dermatoai.AnalysisResultR\aresults2e\n" +
-	"\x13SkinAnalysisService\x12N\n" +
-	"\vAnalyzeSkin\x12\x1d.dermatoai.AnalyzeSkinRequest\x1a\x1e.dermatoai.AnalyzeSkinResponse(\x01B#Z!model-inference-service/gen;citrab\x06proto3"
+	"\x12analysis_timestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x11analysisTimestamp\x12#\n" +
+	"\rserver_sha256\x18\x04 \x01(\fR\fserverSha256\x127\n" +
+	"\aresults\x18\x05 \x03(\v2\x1d.skin_analyzer.AnalysisResultR\aresults2m\n" +
+	"\x13SkinAnalysisService\x12V\n" +
+	"\vAnalyzeSkin\x12!.skin_analyzer.AnalyzeSkinRequest\x1a\".skin_analyzer.AnalyzeSkinResponse(\x01B!Z\x1fskin-analyzer-service/gen;citrab\x06proto3"
 
 var (
-	file_citra_proto_rawDescOnce sync.Once
-	file_citra_proto_rawDescData []byte
+	file_skin_analyzer_proto_rawDescOnce sync.Once
+	file_skin_analyzer_proto_rawDescData []byte
 )
 
-func file_citra_proto_rawDescGZIP() []byte {
-	file_citra_proto_rawDescOnce.Do(func() {
-		file_citra_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_citra_proto_rawDesc), len(file_citra_proto_rawDesc)))
+func file_skin_analyzer_proto_rawDescGZIP() []byte {
+	file_skin_analyzer_proto_rawDescOnce.Do(func() {
+		file_skin_analyzer_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_skin_analyzer_proto_rawDesc), len(file_skin_analyzer_proto_rawDesc)))
 	})
-	return file_citra_proto_rawDescData
+	return file_skin_analyzer_proto_rawDescData
 }
 
-var file_citra_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_citra_proto_goTypes = []any{
-	(*ImageInfo)(nil),             // 0: dermatoai.ImageInfo
-	(*AnalyzeSkinRequest)(nil),    // 1: dermatoai.AnalyzeSkinRequest
-	(*AnalysisResult)(nil),        // 2: dermatoai.AnalysisResult
-	(*AnalyzeSkinResponse)(nil),   // 3: dermatoai.AnalyzeSkinResponse
-	nil,                           // 4: dermatoai.ImageInfo.MetadataEntry
+var file_skin_analyzer_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_skin_analyzer_proto_goTypes = []any{
+	(*ImageInfo)(nil),             // 0: skin_analyzer.ImageInfo
+	(*AnalyzeSkinRequest)(nil),    // 1: skin_analyzer.AnalyzeSkinRequest
+	(*AnalysisResult)(nil),        // 2: skin_analyzer.AnalysisResult
+	(*AnalyzeSkinResponse)(nil),   // 3: skin_analyzer.AnalyzeSkinResponse
+	nil,                           // 4: skin_analyzer.ImageInfo.MetadataEntry
 	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
-var file_citra_proto_depIdxs = []int32{
-	4, // 0: dermatoai.ImageInfo.metadata:type_name -> dermatoai.ImageInfo.MetadataEntry
-	0, // 1: dermatoai.AnalyzeSkinRequest.info:type_name -> dermatoai.ImageInfo
-	5, // 2: dermatoai.AnalyzeSkinResponse.analysis_timestamp:type_name -> google.protobuf.Timestamp
-	2, // 3: dermatoai.AnalyzeSkinResponse.results:type_name -> dermatoai.AnalysisResult
-	1, // 4: dermatoai.SkinAnalysisService.AnalyzeSkin:input_type -> dermatoai.AnalyzeSkinRequest
-	3, // 5: dermatoai.SkinAnalysisService.AnalyzeSkin:output_type -> dermatoai.AnalyzeSkinResponse
+var file_skin_analyzer_proto_depIdxs = []int32{
+	4, // 0: skin_analyzer.ImageInfo.metadata:type_name -> skin_analyzer.ImageInfo.MetadataEntry
+	0, // 1: skin_analyzer.AnalyzeSkinRequest.info:type_name -> skin_analyzer.ImageInfo
+	5, // 2: skin_analyzer.AnalyzeSkinResponse.analysis_timestamp:type_name -> google.protobuf.Timestamp
+	2, // 3: skin_analyzer.AnalyzeSkinResponse.results:type_name -> skin_analyzer.AnalysisResult
+	1, // 4: skin_analyzer.SkinAnalysisService.AnalyzeSkin:input_type -> skin_analyzer.AnalyzeSkinRequest
+	3, // 5: skin_analyzer.SkinAnalysisService.AnalyzeSkin:output_type -> skin_analyzer.AnalyzeSkinResponse
 	5, // [5:6] is the sub-list for method output_type
 	4, // [4:5] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -380,12 +377,12 @@ var file_citra_proto_depIdxs = []int32{
 	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_citra_proto_init() }
-func file_citra_proto_init() {
-	if File_citra_proto != nil {
+func init() { file_skin_analyzer_proto_init() }
+func file_skin_analyzer_proto_init() {
+	if File_skin_analyzer_proto != nil {
 		return
 	}
-	file_citra_proto_msgTypes[1].OneofWrappers = []any{
+	file_skin_analyzer_proto_msgTypes[1].OneofWrappers = []any{
 		(*AnalyzeSkinRequest_Info)(nil),
 		(*AnalyzeSkinRequest_Chunk)(nil),
 	}
@@ -393,17 +390,17 @@ func file_citra_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_citra_proto_rawDesc), len(file_citra_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_skin_analyzer_proto_rawDesc), len(file_skin_analyzer_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_citra_proto_goTypes,
-		DependencyIndexes: file_citra_proto_depIdxs,
-		MessageInfos:      file_citra_proto_msgTypes,
+		GoTypes:           file_skin_analyzer_proto_goTypes,
+		DependencyIndexes: file_skin_analyzer_proto_depIdxs,
+		MessageInfos:      file_skin_analyzer_proto_msgTypes,
 	}.Build()
-	File_citra_proto = out.File
-	file_citra_proto_goTypes = nil
-	file_citra_proto_depIdxs = nil
+	File_skin_analyzer_proto = out.File
+	file_skin_analyzer_proto_goTypes = nil
+	file_skin_analyzer_proto_depIdxs = nil
 }

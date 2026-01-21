@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package skin_analyzer;
+
+option go_package = "skin-analyzer-service/gen;citra";
+
+import "google/protobuf/timestamp.proto";
+
+service SkinAnalysisService {
+  rpc AnalyzeSkin (stream AnalyzeSkinRequest) returns (AnalyzeSkinResponse);
+}
+
+message ImageInfo {
+  string user_id = 1;
+  string image_type = 2;
+  bytes client_sha256 = 3;
+  map<string, string> metadata = 4;
+}
+
+message AnalyzeSkinRequest {
+  oneof request_payload {
+    ImageInfo info = 1;
+    bytes chunk = 2;
+  }
+}
+
+message AnalysisResult {
+  string label = 1;
+  float confidence = 2;
+  string description = 3;
+  string recommendation = 4;
+}
+
+message AnalyzeSkinResponse {
+  string analysis_id = 1;
+  google.protobuf.Timestamp analysis_timestamp = 2;
+  bytes server_sha256 = 4;
+  repeated AnalysisResult results = 5;
+}
