@@ -9,15 +9,14 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"skin-analyzer-service/api"
-	"skin-analyzer-service/data"
-	"skin-analyzer-service/event"
-	"skin-analyzer-service/model"
-	"skin-analyzer-service/service"
+	"skin-analyzer-service/internal/data"
+	"skin-analyzer-service/internal/event"
+	"skin-analyzer-service/internal/model"
+	pb "skin-analyzer-service/internal/pb"
+	"skin-analyzer-service/internal/service"
+	api2 "skin-analyzer-service/internal/transport"
 	"syscall"
 	"time"
-
-	pb "skin-analyzer-service/gen"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -137,7 +136,7 @@ func startServers(ctx context.Context, inferenceService *service.InferenceServic
 
 	if !mode {
 		grpcServer := grpc.NewServer()
-		pb.RegisterSkinAnalysisServiceServer(grpcServer, api.NewSkinAnalysisServer(inferenceService, events))
+		pb.RegisterSkinAnalysisServiceServer(grpcServer, api2.NewSkinAnalysisServer(inferenceService, events))
 
 		lis, err := net.Listen("tcp", ":8008")
 		if err != nil {
@@ -160,7 +159,7 @@ func startServers(ctx context.Context, inferenceService *service.InferenceServic
 		app := fiber.New(fiber.Config{
 			DisableStartupMessage: true,
 		})
-		app.Post("/analyze-skin", api.HandleFileUpload(inferenceService, events))
+		app.Post("/analyze-skin", api2.HandleFileUpload(inferenceService, events))
 
 		go func() {
 			log.Printf("Starting Fiber server on :8088")

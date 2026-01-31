@@ -1,4 +1,4 @@
-package api
+package transport
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"skin-analyzer-service/event"
-	"skin-analyzer-service/service"
+	"skin-analyzer-service/internal/event"
+	"skin-analyzer-service/internal/service"
 	"time"
 
 	"github.com/gofiber/fiber/v2"

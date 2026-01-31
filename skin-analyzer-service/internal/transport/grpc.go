@@ -1,15 +1,14 @@
-package api
+package transport
 
 import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"skin-analyzer-service/event"
-	"skin-analyzer-service/service"
+	"skin-analyzer-service/internal/event"
+	"skin-analyzer-service/internal/pb"
+	"skin-analyzer-service/internal/service"
 	"time"
-
-	pb "skin-analyzer-service/gen"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
@@ -18,7 +17,7 @@ import (
 )
 
 type SkinAnalysisServer struct {
-	pb.UnimplementedSkinAnalysisServiceServer
+	citra.UnimplementedSkinAnalysisServiceServer
 	inferenceService *service.InferenceService
 	chronicEvent     chan event.Event
 }
@@ -30,9 +29,9 @@ func NewSkinAnalysisServer(inferenceService *service.InferenceService, event cha
 	}
 }
 
-func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSkinServer) error {
+func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_AnalyzeSkinServer) error {
 	var imageBuffer bytes.Buffer
-	var imageInfo *pb.ImageInfo
+	var imageInfo *citra.ImageInfo
 
 	for {
 		req, err := stream.Recv()
@@ -48,9 +47,9 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		}
 
 		switch payload := req.RequestPayload.(type) {
-		case *pb.AnalyzeSkinRequest_Info:
+		case *citra.AnalyzeSkinRequest_Info:
 			imageInfo = payload.Info
-		case *pb.AnalyzeSkinRequest_Chunk:
+		case *citra.AnalyzeSkinRequest_Chunk:
 			imageBuffer.Write(payload.Chunk)
 		}
 	}
@@ -118,10 +117,10 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		return status.Errorf(codes.Internal, "failed to predict: %v", err)
 	}
 
-	var analysisResults []*pb.AnalysisResult
+	var analysisResults []*citra.AnalysisResult
 
 	for _, predictionResult := range predictionResults {
-		analysisResults = append(analysisResults, &pb.AnalysisResult{
+		analysisResults = append(analysisResults, &citra.AnalysisResult{
 			Label:          predictionResult.ClassName,
 			Confidence:     predictionResult.Confidence,
 			Description:    s.inferenceService.GetDescription(predictionResult.ClassIndex),
@@ -129,7 +128,7 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream pb.SkinAnalysisService_AnalyzeSk
 		})
 	}
 
-	response := &pb.AnalyzeSkinResponse{
+	response := &citra.AnalyzeSkinResponse{
 		AnalysisId:        uuid.New().String(),
 		AnalysisTimestamp: timestamppb.New(time.Now()),
 		ServerSha256:      serverChecksum[:],
