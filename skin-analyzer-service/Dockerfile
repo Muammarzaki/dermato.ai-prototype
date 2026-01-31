@@ -1,16 +1,19 @@
 # Build stage
-FROM golang:1.21-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 WORKDIR /app
 
-# Copy the source code
-COPY . .
+# Copy go mod files first
+COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
 
-# Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -o main .
+# Copy the rest of the source code
+COPY . .
+
+# Build the application - build from cmd/main.go
+RUN CGO_ENABLED=1 GOOS=linux go build -o main ./cmd/main.go
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -34,8 +37,8 @@ COPY --from=builder /app/main .
 
 # Copy any additional required files (models, configs, etc.)
 RUN mkdir -p models
-COPY --from=builder /app/models/model_dermatoai94.onnx ./models/model.onnx
-COPY --from=builder /app/models/model_classes.json ./models/classes.json
+COPY models/model_dermatoai94.onnx ./models/model.onnx
+COPY models/model_classes.json ./models/classes.json
 
 # Expose the ports your application uses
 EXPOSE 8008 8088

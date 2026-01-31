@@ -1,7 +1,7 @@
 services:
   skin-analyzer-grpc:
     build:
-      context: .
+      context: ./skin-analyzer-service
       dockerfile: Dockerfile
     ports:
       - "8008:8008"  # gRPC port
@@ -22,7 +22,7 @@ services:
 
   skin-analyzer-rest:
     build:
-      context: .
+      context: ./skin-analyzer-service
       dockerfile: Dockerfile
     ports:
       - "8088:8088"  # REST API port
