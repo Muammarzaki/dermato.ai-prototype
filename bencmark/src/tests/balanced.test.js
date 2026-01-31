@@ -26,7 +26,7 @@ export const options = {
 };
 
 // Initialize clients
-const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'citra.proto');
+const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'skin_analyzer.proto');
 const restClient = new RestClient(CONFIG.REST_ADDR);
 
 export function setup() {

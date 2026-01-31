@@ -3,6 +3,7 @@ import http from 'k6/http';
 import {check} from 'k6';
 import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
 import {calcBytes} from './bytes.js';
+import crypto from 'k6/crypto';
 
 // ================= METRICS =================
 const restReqDuration = new Trend('rest_req_duration', true);
@@ -34,22 +35,29 @@ export class RestClient {
         this.active++;
         restActiveRequests.add(this.active);
 
+        // Calculate SHA256 checksum
+        const sha256Hash = crypto.sha256(imageData, 'hex');
+
         const formData = {
             file: http.file(imageData, 'sample.jpg', 'image/jpeg'),
             user_id: metadata.user_id,
+            client_sha256: sha256Hash,
             metadata: JSON.stringify(metadata.meta_tags),
         };
 
         const requestSize =
             calcBytes(imageData) +
-            calcBytes(metadata);
+            calcBytes(metadata) +
+            calcBytes(sha256Hash);
 
         try {
             const res = http.post(
                 `${this.baseUrl}/analyze-skin`,
                 formData,
                 {
-                    timeout, tags: {protocol: 'rest'}, headers: {
+                    timeout,
+                    tags: {protocol: 'rest'},
+                    headers: {
                         'Connection': 'close'
                     }
                 }
@@ -57,6 +65,7 @@ export class RestClient {
 
             restReqDuration.add(Date.now() - start);
 
+            // Record detailed timings
             const t = res.timings || {};
             if (t.blocked) restReqBlocked.add(t.blocked);
             if (t.connecting) restReqConnecting.add(t.connecting);
@@ -72,19 +81,29 @@ export class RestClient {
             if (!ok) {
                 hasError = true;
                 restReqFailed.add(1);
+                console.error(`REST Error: Status ${res.status}, Body: ${res.body}`);
             }
 
             let body = null;
             try {
                 body = JSON.parse(res.body);
-            } catch {
+            } catch (e) {
                 hasError = true;
+                console.error(`REST JSON Parse Error: ${e.message}`);
             }
 
             check(body, {
                 'REST: response exists': (r) => r !== null,
-                'REST: has analysis_id': (r) => typeof r.analysis_id === 'string',
-                'REST: has results': (r) => Array.isArray(r.results),
+                'REST: status is 200': () => res.status === 200,
+                'REST: has analysis_id': (r) => typeof r?.analysis_id === 'string',
+                'REST: has server_sha256': (r) => typeof r?.server_sha256 === 'string',
+                'REST: has results': (r) => Array.isArray(r?.results) && r.results.length > 0,
+                'REST: confidence valid': (r) =>
+                    r?.results?.[0]?.confidence >= 0 &&
+                    r?.results?.[0]?.confidence <= 1,
+                'REST: has label': (r) => typeof r?.results?.[0]?.label === 'string',
+                'REST: has description': (r) => typeof r?.results?.[0]?.description === 'string',
+                'REST: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
             });
 
             restReqSucceeded.add(!hasError);
@@ -94,7 +113,7 @@ export class RestClient {
             hasError = true;
             restReqFailed.add(1);
             restReqSucceeded.add(false);
-            console.error(`REST Error: ${e}`);
+            console.error(`REST Request Error: ${e.message}`);
             return null;
 
         } finally {

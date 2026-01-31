@@ -21,7 +21,7 @@ export const options = {
     },
 };
 
-const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'citra.proto');
+const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'skin_analyzer.proto');
 
 export function setup() {
     console.log(`Running ${SCENARIO} scenario - gRPC only`);
