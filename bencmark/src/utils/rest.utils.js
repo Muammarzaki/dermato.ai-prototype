@@ -31,7 +31,6 @@ export class RestClient {
     analyzeSkin(imageData, sh256, metadata, timeout = '30s') {
         const start = Date.now();
         let hasError = false;
-        console.log(sh256)
 
         this.active++;
         restActiveRequests.add(this.active);
@@ -92,7 +91,6 @@ export class RestClient {
             let body = null;
             try {
                 body = JSON.parse(res.body);
-                console.log(body)
             } catch (e) {
                 // Jika error parse, jangan set hasError=true dulu jika status sudah OK
                 // Biarkan check() di bawah yang memvalidasi struktur body
@@ -100,10 +98,11 @@ export class RestClient {
                     console.error(`REST JSON Parse Error: ${e.message}`);
                 }
             }
-
+            check(res, {
+                'REST: status is 200': (r) => r.status === 200,
+            })
             check(body, {
                 'REST: response exists': (r) => r !== null,
-                'REST: status is 200': () => res.status === 200,
                 'REST: has analysis_id': (r) => typeof r?.analysis_id === 'string',
                 'REST: has server_sha256': (r) => typeof r?.server_sha256 === 'string',
                 'REST: has results': (r) => Array.isArray(r?.results) && r.results.length > 0,
