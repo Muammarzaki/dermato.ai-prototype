@@ -4,7 +4,6 @@ import {check} from 'k6';
 import {b64encode} from 'k6/encoding';
 import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
 import {calcBytes} from './bytes.js';
-import crypto from "k6/crypto";
 
 // ===================== METRICS =====================
 const grpcReqDuration = new Trend('grpc_req_duration', true);
@@ -43,7 +42,7 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(imageData, metadata, chunkSize = 64 * 1024, onClose = null) {
+    analyzeSkin(imageData, sha256, metadata, chunkSize = 64 * 1024, onClose = null) {
         const requestStart = Date.now();
         const streamStart = Date.now();
 
@@ -121,13 +120,12 @@ export class GrpcClient {
         // ================= SEND =================
         try {
             sendingStart = Date.now();
-            const sha256Hash = crypto.sha256(imageData);
 
             const metaMsg = {
                 info: {
                     user_id: metadata.user_id,
                     image_type: metadata.image_type,
-                    client_sha256: sha256Hash,
+                    client_sha256: sha256,
                     metadata: metadata.meta_tags,
                 },
             };

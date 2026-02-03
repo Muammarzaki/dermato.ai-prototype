@@ -1,5 +1,8 @@
+import crypto from "k6/crypto";
 // src/config/config.js
 const imgData = open('../../test-images/sample.jpg', 'b');
+const sha256Hex = crypto.sha256(imgData, 'hex');
+const sha256Base64 = crypto.sha256(imgData, 'base64');
 
 export const CONFIG = {
     // Server endpoints
@@ -8,6 +11,8 @@ export const CONFIG = {
 
     // Image data
     IMAGE_DATA: imgData,
+    SHA256_HASH: sha256Hex,
+    SHA256_BASE64: sha256Base64,
 
     // Performance settings
     CHUNK_SIZE: 64 * 1024, // 64KB chunks for optimal performance

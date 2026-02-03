@@ -41,6 +41,7 @@ export function warmupGrpc() {
             grpcClient.connect(CONFIG.TIMEOUT)
             grpcClient.analyzeSkin(
                 CONFIG.IMAGE_DATA,
+                CONFIG.SHA256_BASE64,
                 CONFIG.METADATA,
                 CONFIG.CHUNK_SIZE,
                 () => grpcClient.close()
