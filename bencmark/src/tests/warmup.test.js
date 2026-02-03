@@ -59,6 +59,7 @@ export function warmupRest() {
         try {
             restClient.analyzeSkin(
                 CONFIG.IMAGE_DATA,
+                CONFIG.SHA256_HASH,
                 CONFIG.METADATA,
                 CONFIG.TIMEOUT
             );

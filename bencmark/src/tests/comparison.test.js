@@ -45,6 +45,7 @@ export function testRest() {
     group('REST Protocol', () => {
         restClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
+            CONFIG.SHA256_HASH,
             CONFIG.METADATA,
             CONFIG.TIMEOUT
         );
