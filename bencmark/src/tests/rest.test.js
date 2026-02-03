@@ -34,6 +34,7 @@ export function testRest() {
     group('REST Skin Analysis', () => {
         restClient.analyzeSkin(
             CONFIG.IMAGE_DATA,
+            CONFIG.SHA256_HASH,
             CONFIG.METADATA,
             CONFIG.TIMEOUT
         );

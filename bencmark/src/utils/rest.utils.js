@@ -3,7 +3,6 @@ import http from 'k6/http';
 import {check} from 'k6';
 import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
 import {calcBytes} from './bytes.js';
-import crypto from 'k6/crypto';
 
 // ================= METRICS =================
 const restReqDuration = new Trend('rest_req_duration', true);
@@ -28,34 +27,40 @@ export class RestClient {
         this.active = 0;
     }
 
-    analyzeSkin(imageData, metadata, timeout = '30s') {
+    // Pastikan urutan parameter: imageData, sh256, metadata, timeout
+    analyzeSkin(imageData, sh256, metadata, timeout = '30s') {
         const start = Date.now();
         let hasError = false;
+        console.log(sh256)
 
         this.active++;
         restActiveRequests.add(this.active);
 
-        // Calculate SHA256 checksum
-        const sha256Hash = crypto.sha256(imageData, 'hex');
+        // 1. Sanitasi Input: Konversi ke String agar aman untuk FormData
+        const userIdSafe = String(metadata.user_id || "");
+        const sha256Safe = String(sh256 || "");
+        const metaString = JSON.stringify(metadata.meta_tags || {});
 
         const formData = {
             file: http.file(imageData, 'sample.jpg', 'image/jpeg'),
-            user_id: metadata.user_id,
-            client_sha256: sha256Hash,
-            metadata: JSON.stringify(metadata.meta_tags),
+            user_id: userIdSafe,
+            client_sha256: sha256Safe,
+            metadata: metaString,
         };
 
+        // 2. Hitung size berdasarkan data yang benar-benar dikirim (bukan object mentah)
         const requestSize =
             calcBytes(imageData) +
-            calcBytes(metadata) +
-            calcBytes(sha256Hash);
+            calcBytes(userIdSafe) +
+            calcBytes(sha256Safe) +
+            calcBytes(metaString);
 
         try {
             const res = http.post(
                 `${this.baseUrl}/analyze-skin`,
                 formData,
                 {
-                    timeout,
+                    timeout: timeout, // Pastikan ini string '30s' dari parameter default/input
                     tags: {protocol: 'rest'},
                     headers: {
                         'Connection': 'close'
@@ -87,9 +92,13 @@ export class RestClient {
             let body = null;
             try {
                 body = JSON.parse(res.body);
+                console.log(body)
             } catch (e) {
-                hasError = true;
-                console.error(`REST JSON Parse Error: ${e.message}`);
+                // Jika error parse, jangan set hasError=true dulu jika status sudah OK
+                // Biarkan check() di bawah yang memvalidasi struktur body
+                if (!ok) {
+                    console.error(`REST JSON Parse Error: ${e.message}`);
+                }
             }
 
             check(body, {
