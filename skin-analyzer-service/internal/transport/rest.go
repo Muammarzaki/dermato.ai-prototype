@@ -76,9 +76,10 @@ func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent c
 		}
 
 		uploadRequest := FileUploadRequest{
-			UserID:    c.FormValue("user_id"),
-			ImageType: file.Header.Get("Content-Type"),
-			Metadata:  metadata,
+			UserID:       c.FormValue("user_id"),
+			ImageType:    file.Header.Get("Content-Type"),
+			Metadata:     metadata,
+			ClientSha256: c.FormValue("client_sha256"),
 		}
 
 		if uploadRequest.UserID == "" {
@@ -120,8 +121,7 @@ func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent c
 
 		serverChecksum := sha256.Sum256(buffer)
 
-		clientChecksumHex := c.FormValue("client_sha256")
-		if clientChecksumHex == "" {
+		if uploadRequest.ClientSha256 == "" {
 			chronicEvent <- event.Event{
 				Status: "error",
 				Body:   "client checksum is required for data integrity validation",
@@ -131,7 +131,7 @@ func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent c
 			})
 		}
 
-		clientChecksum, err := hex.DecodeString(clientChecksumHex)
+		clientChecksum, err := hex.DecodeString(uploadRequest.ClientSha256)
 		if err != nil {
 			chronicEvent <- event.Event{
 				Status: "error",
