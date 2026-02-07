@@ -8,6 +8,7 @@ import com.github.dermatoai.ImageInfo
 import com.github.dermatoai.SkinAnalysisServiceGrpcKt
 import com.github.dermatoai.data.api.dto.AnalyzeApiResponseDTO
 import com.github.dermatoai.data.api.rest.AnalyzeApiService
+import com.github.dermatoai.data.mapper.sha256
 import com.github.dermatoai.domain.common.NetworkProtocol
 import com.github.dermatoai.domain.entity.DiagnosisSession
 import com.github.dermatoai.domain.entity.DiseaseResult
@@ -66,17 +67,26 @@ class NetworkAnalyzeApiRepository @Inject constructor(
     private suspend fun fetchRestRaw(imageBytes: ByteArray): AnalyzeApiResponseDTO {
         val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
         val imagePart = MultipartBody.Part.createFormData("file", "upload.jpg", requestBody)
-        val userIdBody = "android-user".toRequestBody("text/plain".toMediaType())
+        val userIdBody = "android-user-rest".toRequestBody("text/plain".toMediaType())
+        val clientSha256Body = imageBytes.sha256().toRequestBody("text/plain".toMediaType())
 
-        return analyzeApi.predictImage(imagePart, userIdBody)
+
+        return analyzeApi.predictImage(
+            imagePart,
+            userIdBody,
+            clientSha256Body,
+            "{}".toRequestBody()
+        )
     }
 
     private suspend fun fetchGrpcRaw(imageBytes: ByteArray): AnalyzeSkinResponse {
+        val imageChecksum = imageBytes.sha256()
         val requestFlow = flow {
             emit(
                 AnalyzeSkinRequest.newBuilder()
                     .setInfo(
                         ImageInfo.newBuilder().setImageType("jpeg").setUserId("android-user")
+                            .setClientSha256(ByteString.copyFrom(imageChecksum))
                             .build()
                     )
                     .build()
@@ -114,6 +124,7 @@ class NetworkAnalyzeApiRepository @Inject constructor(
             ),
             image = com.github.dermatoai.domain.entity.ImageInfo(
                 imageUri = uri.toString(),
+                imageSha256 = dto.serverSha256.toByteArray(),
                 imageWidth = null,
                 imageHeight = null
             ),
@@ -139,6 +150,7 @@ class NetworkAnalyzeApiRepository @Inject constructor(
             ),
             image = com.github.dermatoai.domain.entity.ImageInfo(
                 imageUri = uri.toString(),
+                imageSha256 = proto.serverSha256.toByteArray(),
                 imageWidth = null,
                 imageHeight = null
             ),

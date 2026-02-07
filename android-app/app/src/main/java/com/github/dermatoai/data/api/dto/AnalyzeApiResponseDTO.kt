@@ -1,6 +1,5 @@
 package com.github.dermatoai.data.api.dto
 
-import com.github.dermatoai.data.api.dto.AnalyzeResultItemDTO
 import com.google.gson.annotations.SerializedName
 
 data class AnalyzeApiResponseDTO(
@@ -9,6 +8,9 @@ data class AnalyzeApiResponseDTO(
 
     @SerializedName("analysis_timestamp")
     val analysisTimestamp: String,
+
+    @SerializedName("server_sha256")
+    val serverSha256: String,
 
     @SerializedName("results")
     val results: List<AnalyzeResultItemDTO>

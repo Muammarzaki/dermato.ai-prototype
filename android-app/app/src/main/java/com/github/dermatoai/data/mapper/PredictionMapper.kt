@@ -5,6 +5,7 @@ import com.github.dermatoai.domain.entity.DiagnosisSession
 import com.github.dermatoai.domain.entity.DiseaseResult
 import com.github.dermatoai.domain.entity.ImageInfo
 import com.github.dermatoai.domain.entity.PerformanceMetrics
+import java.security.MessageDigest
 
 
 fun DiagnosisSession.toEntity(): PredictionRecordEntity = PredictionRecordEntity(
@@ -17,12 +18,13 @@ fun DiagnosisSession.toEntity(): PredictionRecordEntity = PredictionRecordEntity
     imageHeight = this.image?.imageHeight,
     imageSizeBytes = this.image?.imageSizeBytes,
     imageMimeType = this.image?.imageMimeType,
-    protocol = this.metrics?.protocolUsed ?: "" ,
+    protocol = this.metrics?.protocolUsed ?: "",
     httpStatus = null,
     grpcStatus = null,
     isSuccess = this.metrics?.status ?: false,
     errorMessage = null,
     createdAt = this.timestamp,
+    imageSha256 = this.image?.imageSha256?.toHex() ?: "",
 )
 
 
@@ -40,7 +42,17 @@ fun PredictionRecordEntity.toDomain(): DiagnosisSession {
             imageUri = this.imageUri,
             imageWidth = this.imageWidth,
             imageHeight = this.imageHeight,
-            imageSizeBytes = this.imageSizeBytes
+            imageSizeBytes = this.imageSizeBytes,
+            imageSha256 = this.imageSha256.toByteArray(),
+            imageMimeType = this.imageMimeType
         )
     )
+}
+
+fun ByteArray.toHex(): String =
+    joinToString("") { "%02x".format(it) }
+
+fun ByteArray.sha256(): ByteArray {
+    val digest = MessageDigest.getInstance("SHA-256")
+    return digest.digest(this)
 }

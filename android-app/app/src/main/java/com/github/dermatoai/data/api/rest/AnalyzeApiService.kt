@@ -12,7 +12,8 @@ interface AnalyzeApiService {
     @POST("/analyze-skin")
     suspend fun predictImage(
         @Part image: MultipartBody.Part,
-
-        @Part("user_id") userId: RequestBody
+        @Part("user_id") userId: RequestBody,
+        @Part("client_sha256") clientSha256: RequestBody,
+        @Part("metadata") metadata: RequestBody,
     ): AnalyzeApiResponseDTO
 }

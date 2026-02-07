@@ -47,6 +47,9 @@ data class PredictionRecordEntity(
     @ColumnInfo(name = "image_mime_type")
     val imageMimeType: String? = null,
 
+    @ColumnInfo(name = "image_sha256")
+    val imageSha256: String,
+
     // ----------------------------------------------------------------
     // Network / Technical Info
     // ----------------------------------------------------------------
