@@ -9,6 +9,7 @@ import com.github.dermatoai.SkinAnalysisServiceGrpcKt
 import com.github.dermatoai.data.api.dto.AnalyzeApiResponseDTO
 import com.github.dermatoai.data.api.rest.AnalyzeApiService
 import com.github.dermatoai.data.mapper.sha256
+import com.github.dermatoai.data.mapper.toHex
 import com.github.dermatoai.domain.common.NetworkProtocol
 import com.github.dermatoai.domain.entity.DiagnosisSession
 import com.github.dermatoai.domain.entity.DiseaseResult
@@ -68,7 +69,8 @@ class NetworkAnalyzeApiRepository @Inject constructor(
         val requestBody = imageBytes.toRequestBody("image/jpeg".toMediaType())
         val imagePart = MultipartBody.Part.createFormData("file", "upload.jpg", requestBody)
         val userIdBody = "android-user-rest".toRequestBody("text/plain".toMediaType())
-        val clientSha256Body = imageBytes.sha256().toRequestBody("text/plain".toMediaType())
+        val clientSha256 = imageBytes.sha256().toHex()
+        val clientSha256Body = clientSha256.toRequestBody("text/plain".toMediaType())
 
 
         return analyzeApi.predictImage(

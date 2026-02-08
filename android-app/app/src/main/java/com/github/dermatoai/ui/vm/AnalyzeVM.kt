@@ -75,7 +75,12 @@ class AnalyzeVM @Inject constructor(
         }
     }
 
-    fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
+    fun resetUIState() {
+        _uiState.value = _uiState.value.copy(
+            selectedImageUri = null,
+            lastPredictionResult = null,
+            errorMessage = null,
+        )
     }
+
 }

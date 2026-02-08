@@ -1,6 +1,7 @@
 package com.github.dermatoai.domain.repository
 
 import androidx.paging.PagingData
+import com.github.dermatoai.data.db.dto.ProtocolStatDto
 import com.github.dermatoai.domain.entity.DiagnosisSession
 import com.github.dermatoai.domain.entity.PredictionFilter
 import kotlinx.coroutines.flow.Flow
@@ -15,4 +16,6 @@ interface LocalDBRepository {
     fun getPredictionHistory(
         filter: PredictionFilter
     ): Flow<PagingData<DiagnosisSession>>
+
+    fun getProtocolStats(): Flow<List<ProtocolStatDto>>
 }

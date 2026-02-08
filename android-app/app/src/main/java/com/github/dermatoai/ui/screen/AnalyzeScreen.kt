@@ -1,5 +1,6 @@
 package com.github.dermatoai.ui.screen
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,6 +39,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,11 +54,22 @@ fun AnalyzeScreen(
     viewModel: AnalyzeVM = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> viewModel.onImageSelected(uri) }
-    )
+    ) { uri ->
+        if (uri != null) {
+            val mimeType = context.contentResolver.getType(uri)
+            if (mimeType == "image/jpeg" || mimeType == "image/png") {
+                viewModel.onImageSelected(uri)
+            } else {
+                Toast
+                    .makeText(context, "Only JPG or PNG allowed", Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -197,7 +210,7 @@ fun AnalyzeScreen(
             PredictionResultDialog(
                 result = uiState.lastPredictionResult!!,
                 onDismiss = {
-                    viewModel.clearError()
+                    viewModel.resetUIState()
                 }
             )
         }

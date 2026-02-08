@@ -4,8 +4,9 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import com.github.dermatoai.data.db.utils.PredictionQueryBuilder
 import com.github.dermatoai.data.db.dao.PredictionRecordDao
+import com.github.dermatoai.data.db.dto.ProtocolStatDto
+import com.github.dermatoai.data.db.utils.PredictionQueryBuilder
 import com.github.dermatoai.data.mapper.toDomain
 import com.github.dermatoai.data.mapper.toEntity
 import com.github.dermatoai.domain.entity.DiagnosisSession
@@ -48,5 +49,9 @@ class LocalDataPersistenceRepository @Inject constructor(
                     entity.toDomain()
                 }
             }
+    }
+
+    override fun getProtocolStats(): Flow<List<ProtocolStatDto>> {
+        return dao.getProtocolStatistics()
     }
 }

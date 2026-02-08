@@ -33,7 +33,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8088\"")
+            buildConfigField("String", "BASE_URL", "\"http://localhost:8088\"")
             buildConfigField("String", "GRPC_HOST", "\"127.0.0.1\"")
             buildConfigField("int", "GRPC_PORT", "8008")
         }
@@ -42,8 +42,8 @@ android {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
 
-            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8088\"")
-            buildConfigField("String", "GRPC_HOST", "\"127.0.0.1\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8088\"")
+            buildConfigField("String", "GRPC_HOST", "\"10.0.2.2\"")
             buildConfigField("int", "GRPC_PORT", "8008")
         }
     }
@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.navigation.compose)
     ksp(libs.hilt.android.compiler)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
