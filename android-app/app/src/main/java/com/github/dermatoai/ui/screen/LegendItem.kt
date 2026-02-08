@@ -18,14 +18,14 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LegendItem(label: String, color: Color) {
-    Row(verticalAlignment = Alignment.Companion.CenterVertically) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            modifier = Modifier.Companion
+            modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
                 .background(color)
         )
-        Spacer(modifier = Modifier.Companion.width(6.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,

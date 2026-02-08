@@ -48,12 +48,9 @@ import com.github.dermatoai.ui.vm.DataVM
 fun HistoryScreen(
     viewModel: DataVM = hiltViewModel()
 ) {
-    // 1. Ambil Data Paging & State Filter
     val historyItems = viewModel.historyPagingFlow.collectAsLazyPagingItems()
     val filterState by viewModel.filterState.collectAsState()
 
-    // State lokal untuk search bar agar responsif saat mengetik
-    // Kita sinkronkan dengan filterState.label saat inisialisasi
     var searchText by remember(filterState.label) { mutableStateOf(filterState.label ?: "") }
 
     Column(
@@ -61,12 +58,11 @@ fun HistoryScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // --- SEARCH BAR ---
         OutlinedTextField(
             value = searchText,
             onValueChange = {
                 searchText = it
-                viewModel.updateFilter(query = it) // Update ViewModel
+                viewModel.updateFilter(query = it)
             },
             label = { Text("Search History (e.g. Melanoma)") },
             modifier = Modifier.fillMaxWidth(),

@@ -21,68 +21,70 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.github.dermatoai.ui.theme.gRpcBlue
+import com.github.dermatoai.ui.theme.restRed
 
 @Composable
 fun LatencyChartCard(
-    restLatency: Int,
-    grpcLatency: Int,
+    restLatency: Double,
+    grpcLatency: Double,
     animate: Boolean
 ) {
     val maxLatency = maxOf(restLatency, grpcLatency) * 1.2f // Add buffer space
     val speedUpFactor = restLatency / grpcLatency
 
     Card(
-        modifier = Modifier.Companion.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.Companion.padding(20.dp),
+            modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Companion.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Average Latency",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Companion.Bold
+                    fontWeight = FontWeight.Bold
                 )
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "${speedUpFactor}x Faster",
+                        text = "%.1fx Faster".format(speedUpFactor),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Companion.Bold,
-                        modifier = Modifier.Companion.padding(horizontal = 8.dp, vertical = 4.dp)
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
             MetricBar(
                 label = "REST",
-                value = restLatency,
-                maxValue = maxLatency,
-                color = Color(0xFFE91E63),
+                value = restLatency.toInt(),
+                maxValue = maxLatency.toFloat(),
+                color = restRed,
                 icon = Icons.Default.Cloud,
                 animate = animate
             )
 
             MetricBar(
                 label = "gRPC",
-                value = grpcLatency,
-                maxValue = maxLatency,
-                color = Color(0xFF2196F3),
+                value = grpcLatency.toInt(),
+                maxValue = maxLatency.toFloat(),
+                color = gRpcBlue,
                 icon = Icons.Default.Bolt,
                 animate = animate
             )
 
-            HorizontalDivider(modifier = Modifier.Companion.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
                 text = "Lower is better. gRPC significantly outperforms REST in image transmission speed.",

@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.github.dermatoai.ui.screen.LegendItem
+import com.github.dermatoai.ui.theme.gRpcBlue
+import com.github.dermatoai.ui.theme.restRed
 
 @Composable
 fun ProtocolDistributionCard(
@@ -73,13 +75,13 @@ fun ProtocolDistributionCard(
                     modifier = Modifier.Companion
                         .weight(animatedPercent)
                         .fillMaxHeight()
-                        .background(Color(0xFF2196F3))
+                        .background(gRpcBlue)
                 )
                 Box(
                     modifier = Modifier.Companion
                         .weight(1f - animatedPercent)
                         .fillMaxHeight()
-                        .background(Color(0xFFE91E63))
+                        .background(restRed)
                 )
             }
 
@@ -89,11 +91,11 @@ fun ProtocolDistributionCard(
             ) {
                 LegendItem(
                     label = "gRPC (${(animatedPercent * 100).toInt()}%)",
-                    color = Color(0xFF2196F3)
+                    color = gRpcBlue
                 )
                 LegendItem(
                     label = "REST (${100 - (animatedPercent * 100).toInt()}%)",
-                    color = Color(0xFFE91E63)
+                    color = restRed
                 )
             }
         }

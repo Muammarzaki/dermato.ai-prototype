@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SummaryCard(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     title: String,
     value: String,
     icon: ImageVector,
@@ -35,22 +35,22 @@ fun SummaryCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.Companion.padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(color.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Companion.Center
+                contentAlignment = Alignment.Center
             ) {
                 Icon(imageVector = icon, contentDescription = null, tint = color)
             }
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Companion.ExtraBold,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(

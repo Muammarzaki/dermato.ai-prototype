@@ -47,7 +47,7 @@ class StatisticsVM @Inject constructor(
             
             return ProtocolUiData(
                 name = protocolName,
-                avgLatency = dto.avgLatency.toInt(),
+                avgLatencyMs = dto.avgLatencyMs,
                 totalCount = dto.totalCount,
                 usagePercent = dto.totalCount.toFloat() / grandTotal,
                 successRate = successRate * 100f,

@@ -109,8 +109,8 @@ fun StatisticsScreen(
 
             // Latency Comparison Chart
             LatencyChartCard(
-                restLatency = uiState.restStats.avgLatency,
-                grpcLatency = uiState.grpcStats.avgLatency,
+                restLatency = uiState.restStats.avgLatencyMs,
+                grpcLatency = uiState.grpcStats.avgLatencyMs,
                 animate = startAnimation
             )
 

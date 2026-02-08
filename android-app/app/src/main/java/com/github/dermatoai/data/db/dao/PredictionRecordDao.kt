@@ -34,7 +34,7 @@ interface PredictionRecordDao {
             protocol, 
             COUNT(*) as total_count,
             SUM(CASE WHEN is_success = 1 THEN 1 ELSE 0 END) as success_count,
-            AVG(CASE WHEN is_success = 1 THEN latency_ms ELSE NULL END) as avg_latency
+            AVG(CASE WHEN is_success = 1 THEN latency_ms ELSE NULL END) as avg_latency_ms
         FROM prediction_records 
         GROUP BY protocol
     """

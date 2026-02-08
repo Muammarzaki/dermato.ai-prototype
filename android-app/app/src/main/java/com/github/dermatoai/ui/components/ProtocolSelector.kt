@@ -65,7 +65,5 @@ fun ProtocolSelector(selected: NetworkProtocol, onSelected: (NetworkProtocol) ->
 @Composable
 private fun ProtocolSelectorPreview() {
     var selectedProtocol by remember { mutableStateOf(NetworkProtocol.REST) }
-    ProtocolSelector(selected = selectedProtocol, onSelected = {
-        selectedProtocol = it
-    })
+    ProtocolSelector(selected = selectedProtocol, onSelected = {})
 }

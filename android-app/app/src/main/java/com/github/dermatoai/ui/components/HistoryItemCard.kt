@@ -52,7 +52,7 @@ fun HistoryItemCard(item: PredictionHistory) {
                     text = item.method,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
