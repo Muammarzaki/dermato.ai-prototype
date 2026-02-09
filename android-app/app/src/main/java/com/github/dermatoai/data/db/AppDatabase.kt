@@ -10,7 +10,8 @@ import com.github.dermatoai.data.db.entity.PredictionRecordEntity
         PredictionRecordEntity::class
     ],
     version = 1,
-    exportSchema = false
+    exportSchema = true,
+    autoMigrations = []
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun predictionDao(): PredictionRecordDao

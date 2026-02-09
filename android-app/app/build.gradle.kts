@@ -77,7 +77,6 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.navigation.compose)
     ksp(libs.hilt.android.compiler)
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
@@ -118,11 +117,11 @@ dependencies {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.25.5" // ⬅️ UPDATE ke 3.25.5
+        artifact = "com.google.protobuf:protoc:3.25.5"
     }
     plugins {
         create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.68.1" // ⬅️ UPDATE
+            artifact = "io.grpc:protoc-gen-grpc-java:1.68.1"
         }
         create("grpckt") {
             artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
@@ -130,28 +129,24 @@ protobuf {
     }
     generateProtoTasks {
         all().forEach { task ->
-            // ⬅️ PENTING: Generate Java code DULU
             task.builtins {
                 create("java") {
                     option("lite")
                 }
             }
 
-            // ⬅️ KEMUDIAN Generate Kotlin DSL
             task.builtins {
                 create("kotlin") {
                     option("lite")
                 }
             }
 
-            // ⬅️ Generate gRPC Java stubs
             task.plugins {
                 create("grpc") {
                     option("lite")
                 }
             }
 
-            // ⬅️ Generate gRPC Kotlin stubs
             task.plugins {
                 create("grpckt") {
                     option("lite")

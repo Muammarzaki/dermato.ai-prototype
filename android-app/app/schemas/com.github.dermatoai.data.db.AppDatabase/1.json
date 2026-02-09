@@ -1,0 +1,118 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "eaeaa9af536a9ffc72b84f3944f680d0",
+    "entities": [
+      {
+        "tableName": "prediction_records",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `label` TEXT NOT NULL, `confidence` REAL NOT NULL, `all_results_json` TEXT, `image_uri` TEXT NOT NULL, `image_width` INTEGER, `image_height` INTEGER, `image_size_bytes` INTEGER, `image_mime_type` TEXT, `image_sha256` TEXT NOT NULL, `protocol` TEXT NOT NULL, `latency_ms` INTEGER, `http_status` INTEGER, `grpc_status` TEXT, `is_success` INTEGER NOT NULL, `error_message` TEXT, `created_at` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "label",
+            "columnName": "label",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "allResultsJson",
+            "columnName": "all_results_json",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageUri",
+            "columnName": "image_uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageWidth",
+            "columnName": "image_width",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageHeight",
+            "columnName": "image_height",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageSizeBytes",
+            "columnName": "image_size_bytes",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "imageMimeType",
+            "columnName": "image_mime_type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageSha256",
+            "columnName": "image_sha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "protocol",
+            "columnName": "protocol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latencyMs",
+            "columnName": "latency_ms",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "httpStatus",
+            "columnName": "http_status",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "grpcStatus",
+            "columnName": "grpc_status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isSuccess",
+            "columnName": "is_success",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "errorMessage",
+            "columnName": "error_message",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'eaeaa9af536a9ffc72b84f3944f680d0')"
+    ]
+  }
+}
