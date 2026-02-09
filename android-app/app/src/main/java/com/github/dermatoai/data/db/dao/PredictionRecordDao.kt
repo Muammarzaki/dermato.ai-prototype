@@ -44,4 +44,6 @@ interface PredictionRecordDao {
     @Query("SELECT COUNT(id) FROM prediction_records")
     fun getTotalScanCount(): Flow<Int>
 
+    @Query("DELETE FROM prediction_records")
+    fun deleteAll()
 }

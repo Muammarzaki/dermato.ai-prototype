@@ -54,4 +54,9 @@ class LocalDataPersistenceRepository @Inject constructor(
     override fun getProtocolStats(): Flow<List<ProtocolStatDto>> {
         return dao.getProtocolStatistics()
     }
+
+    override fun deleteAllPrediction(): Boolean {
+        dao.deleteAll()
+        return true
+    }
 }

@@ -15,4 +15,6 @@ interface DataUseCase {
     fun getPredictionHistory(
         filter: PredictionFilter
     ): Flow<PagingData<DiagnosisSession>>
+
+    suspend fun deleteAllPrediction(): Boolean
 }

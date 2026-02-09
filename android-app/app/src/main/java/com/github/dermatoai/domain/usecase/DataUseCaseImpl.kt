@@ -21,4 +21,7 @@ class DataUseCaseImpl @Inject constructor(
     override fun getPredictionHistory(
         filter: PredictionFilter
     ): Flow<PagingData<DiagnosisSession>> = repository.getPredictionHistory(filter)
+
+    override suspend fun deleteAllPrediction(): Boolean = repository.deleteAllPrediction()
+
 }

@@ -18,4 +18,6 @@ interface LocalDBRepository {
     ): Flow<PagingData<DiagnosisSession>>
 
     fun getProtocolStats(): Flow<List<ProtocolStatDto>>
+
+    fun deleteAllPrediction(): Boolean
 }

@@ -9,6 +9,7 @@ import com.github.dermatoai.domain.entity.PredictionFilter
 import com.github.dermatoai.domain.usecase.DataUseCase
 import com.github.dermatoai.ui.dto.PredictionHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -50,13 +52,28 @@ class DataVM @Inject constructor(
     }
 
     fun deletePrediction(id: Long) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 dataUseCase.deletePrediction(id)
             } catch (e: Exception) {
                 e.printStackTrace()
-                // TODO: Emit error event ke UI jika perlu (misal via Channel)
             }
+        }
+    }
+
+    fun deleteAllHistory() {
+        try {
+            viewModelScope.launch(Dispatchers.IO) {
+                dataUseCase.deleteAllPrediction().let {
+                    withContext(Dispatchers.Main) {
+                        if (it) {
+                            _filterState.value = PredictionFilter()
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

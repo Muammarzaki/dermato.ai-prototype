@@ -101,7 +101,7 @@ fun PredictionResultDialog(
                     ) {
                         MetricRow(
                             label = "Confidence",
-                            value = result.confidence,
+                            value = result.getFormattedConfidence(),
                             icon = Icons.Default.CheckCircle,
                             iconTint = MaterialTheme.colorScheme.tertiary
                         )
@@ -194,8 +194,12 @@ private fun PredictionResultDialogPreview() {
                 id = "1",
                 imagePath = "",
                 prediction = "Disease Name",
-                confidence = "90%",
-                method = "REST"
+                confidence = 0.9,
+                method = "REST",
+                latency = 100,
+                timestamp = System.currentTimeMillis(),
+                isSuccess = true,
+                rawId = 1L
             ),
             onDismiss = {}
         )
@@ -211,8 +215,12 @@ private fun PredictionResultDialogPreview1() {
                 id = "1",
                 imagePath = "",
                 prediction = "Disease Name",
-                confidence = "90%",
-                method = "gRPC"
+                confidence = 0.9,
+                method = "gRPC",
+                latency = 100,
+                timestamp = System.currentTimeMillis(),
+                isSuccess = true,
+                rawId = 1
             ),
             onDismiss = {}
         )
