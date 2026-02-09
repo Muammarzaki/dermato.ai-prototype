@@ -22,7 +22,7 @@ class AnalyzeUseCaseImpl @Inject constructor(
 
         try {
             if (imageUri.isBlank()) {
-                throw IllegalArgumentException("URI Gambar tidak valid")
+                throw IllegalArgumentException("Invalid image URI")
             }
 
             val uriObj = imageUri.toUri()
@@ -31,13 +31,13 @@ class AnalyzeUseCaseImpl @Inject constructor(
             localRepository.savePrediction(result)
 
             if (result.disease.confidence < 0.5f) {
-                emit(Resource.Error("Hasil diagnosa kurang meyakinkan (${result.disease.confidence * 100}%)"))
+                emit(Resource.Error("The diagnosis results were not conclusive enough (${result.disease.confidence * 100}%)"))
             } else {
                 emit(Resource.Success(result))
             }
 
         } catch (e: Exception) {
-            emit(Resource.Error(e.localizedMessage ?: "Terjadi kesalahan sistem"))
+            emit(Resource.Error(e.localizedMessage ?: "A system error occurred"))
         }
     }
 }

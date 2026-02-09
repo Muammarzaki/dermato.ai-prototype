@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">dermato.ai</string>
+    <string name="unknown_system_error">"A system error occurred"</string>
 </resources>
