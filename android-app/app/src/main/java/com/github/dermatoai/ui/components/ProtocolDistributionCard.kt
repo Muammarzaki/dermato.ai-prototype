@@ -39,6 +39,7 @@ fun ProtocolDistributionCard(
         targetValue = if (animate) grpcPercent else 0.5f,
         animationSpec = tween(durationMillis = 1000)
     )
+    val safePercent = animatedPercent.coerceIn(0.001f, 0.999f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -50,13 +51,13 @@ fun ProtocolDistributionCard(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = "Protocol Usage",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Companion.Bold
+                    fontWeight = FontWeight.Bold
                 )
                 Icon(
                     imageVector = Icons.Default.Speed,
@@ -66,27 +67,27 @@ fun ProtocolDistributionCard(
             }
 
             Row(
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp))
             ) {
                 Box(
-                    modifier = Modifier.Companion
-                        .weight(animatedPercent)
+                    modifier = Modifier
+                        .weight(safePercent)
                         .fillMaxHeight()
                         .background(gRpcBlue)
                 )
                 Box(
-                    modifier = Modifier.Companion
-                        .weight(1f - animatedPercent)
+                    modifier = Modifier
+                        .weight(1f - safePercent)
                         .fillMaxHeight()
                         .background(restRed)
                 )
             }
 
             Row(
-                modifier = Modifier.Companion.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 LegendItem(
