@@ -20,4 +20,6 @@ interface LocalDBRepository {
     fun getProtocolStats(): Flow<List<ProtocolStatDto>>
 
     fun deleteAllPrediction(): Boolean
+
+    fun getRecordCount(): Flow<Int>
 }

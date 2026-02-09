@@ -3,7 +3,7 @@ package com.github.dermatoai.ui.vm
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.dermatoai.data.db.dto.ProtocolStatDto
-import com.github.dermatoai.domain.repository.LocalDBRepository
+import com.github.dermatoai.domain.usecase.StatisticUseCase
 import com.github.dermatoai.ui.dto.ProtocolUiData
 import com.github.dermatoai.ui.state.StatisticsUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,10 +15,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class StatisticsVM @Inject constructor(
-    repository: LocalDBRepository
+    useCase: StatisticUseCase
 ) : ViewModel() {
 
-    val uiState: StateFlow<StatisticsUiState> = repository.getProtocolStats()
+    val uiState: StateFlow<StatisticsUiState> = useCase.getProtocolStats()
         .map { rawList ->
             calculateStats(rawList)
         }
@@ -27,6 +27,8 @@ class StatisticsVM @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = StatisticsUiState(isLoading = true)
         )
+
+    val recordCount = useCase.getTotalRecord()
 
     private fun calculateStats(list: List<ProtocolStatDto>): StatisticsUiState {
         val restDto = list.find { it.protocol.equals("REST", ignoreCase = true) }
@@ -44,7 +46,7 @@ class StatisticsVM @Inject constructor(
             if (dto == null || dto.totalCount == 0) return ProtocolUiData(protocolName)
 
             val successRate = dto.successCount.toFloat() / dto.totalCount
-            
+
             return ProtocolUiData(
                 name = protocolName,
                 avgLatencyMs = dto.avgLatencyMs,
@@ -59,7 +61,8 @@ class StatisticsVM @Inject constructor(
         val grpcUiData = mapToUiData(grpcDto, "gRPC")
 
         val totalSuccess = (restDto?.successCount ?: 0) + (grpcDto?.successCount ?: 0)
-        val overallSuccess = if (grandTotal > 0) (totalSuccess.toFloat() / grandTotal) * 100f else 0f
+        val overallSuccess =
+            if (grandTotal > 0) (totalSuccess.toFloat() / grandTotal) * 100f else 0f
 
         return StatisticsUiState(
             totalScans = grandTotal,

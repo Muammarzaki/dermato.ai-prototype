@@ -17,4 +17,10 @@ abstract class UseCaseModule {
     abstract fun bindDataUseCase(
         impl: DataUseCaseImpl
     ): DataUseCase
+
+    @Binds
+    abstract fun bindStatisticUseCase(
+        impl: StatisticUseCaseImpl
+    ): StatisticUseCase
+
 }

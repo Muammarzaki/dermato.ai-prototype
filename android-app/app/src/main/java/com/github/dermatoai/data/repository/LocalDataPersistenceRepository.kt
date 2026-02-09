@@ -59,4 +59,8 @@ class LocalDataPersistenceRepository @Inject constructor(
         dao.deleteAll()
         return true
     }
+
+    override fun getRecordCount(): Flow<Int> {
+        return dao.getTotalScanCount()
+    }
 }
