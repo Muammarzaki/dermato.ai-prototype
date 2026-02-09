@@ -24,6 +24,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.math.min
 import kotlin.system.measureTimeMillis
@@ -104,7 +105,9 @@ class NetworkAnalyzeApiRepository @Inject constructor(
                 offset += length
             }
         }
-        return analyseStub.analyzeSkin(requestFlow)
+        return analyseStub
+            .withDeadlineAfter(30, TimeUnit.SECONDS)
+            .analyzeSkin(requestFlow)
     }
 
     private fun mapRestToDomain(

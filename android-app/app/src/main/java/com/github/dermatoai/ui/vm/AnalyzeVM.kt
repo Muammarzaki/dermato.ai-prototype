@@ -80,6 +80,7 @@ class AnalyzeVM @Inject constructor(
             selectedImageUri = null,
             lastPredictionResult = null,
             errorMessage = null,
+            isLoading = false,
         )
     }
 

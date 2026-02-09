@@ -128,7 +128,7 @@ fun AnalyzeScreen(
                     )
                     ProtocolSelector(
                         selected = uiState.selectedProtocol,
-                        onSelected = { viewModel.onProtocolSelected(it) }
+                        onSelected = { if (!uiState.isLoading) viewModel.onProtocolSelected(it) }
                     )
                 }
             }
@@ -136,9 +136,10 @@ fun AnalyzeScreen(
             ImageSelectionArea(
                 imageUri = uiState.selectedImageUri,
                 onClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
+                    if (!uiState.isLoading)
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
                 }
             )
 

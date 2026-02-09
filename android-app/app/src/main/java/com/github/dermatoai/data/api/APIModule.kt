@@ -13,23 +13,32 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object APIModule {
 
-    val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
-    }
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            if (BuildConfig.DEBUG)
+                level = HttpLoggingInterceptor.Level.BODY
+        }
 
-    val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(loggingInterceptor)
-        .build()
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 
     @Provides
     @Singleton
-    fun provideRetrofit(): Retrofit =
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
@@ -49,6 +58,9 @@ object APIModule {
         ManagedChannelBuilder
             .forAddress(BuildConfig.GRPC_HOST, BuildConfig.GRPC_PORT)
             .usePlaintext()
+            .keepAliveTime(30, TimeUnit.SECONDS)
+            .keepAliveTimeout(5, TimeUnit.SECONDS)
+            .keepAliveWithoutCalls(true)
             .build()
 
     @Provides

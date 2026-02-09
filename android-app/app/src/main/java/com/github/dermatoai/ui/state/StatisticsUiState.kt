@@ -5,10 +5,9 @@ import com.github.dermatoai.ui.dto.ProtocolUiData
 data class StatisticsUiState(
     val totalScans: Int = 0,
     val overallSuccessRate: Float = 0f,
-    
-    // Data per protokol
+
     val restStats: ProtocolUiData = ProtocolUiData("REST"),
-    val grpcStats: ProtocolUiData = ProtocolUiData("GRPC"), // atau "gRPC" sesuai db
+    val grpcStats: ProtocolUiData = ProtocolUiData("GRPC"),
 
     val isLoading: Boolean = true
 )
