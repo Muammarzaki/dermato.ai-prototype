@@ -47,5 +47,8 @@ EXPOSE 8008 8088
 ENV ENVIRONMENT=production
 ENV LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
 
+ENV ONNX_MODEL_PATH=""
+ENV CLASS_DICTIONARY_PATH=""
+
 # Run the application
 CMD ["./main"]
