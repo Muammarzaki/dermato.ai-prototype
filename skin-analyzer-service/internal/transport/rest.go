@@ -37,7 +37,7 @@ type FileUploadResponse struct {
 	Results           []AnalysisResult `json:"results"`
 }
 
-func HandleFileUpload(inferenceService *service.InferenceService, chronicEvent chan event.Event) fiber.Handler {
+func HandleFileUpload(inferenceService service.Inference, chronicEvent chan event.Event) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		file, err := c.FormFile("file")
 		if err != nil {

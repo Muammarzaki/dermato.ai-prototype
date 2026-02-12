@@ -15,31 +15,17 @@ import (
 )
 
 type InferenceService struct {
-	model     *model.ONNXModel
+	model     model.ONNXModel
 	classDict []DiseaseClass
 	mu        sync.Mutex
 }
 
-func NewInferenceService(m *model.ONNXModel, c []DiseaseClass) *InferenceService {
+func NewInferenceService(m model.ONNXModel, c []DiseaseClass) *InferenceService {
 	log.Println("Initializing InferenceService")
 	return &InferenceService{
 		model:     m,
 		classDict: c,
 	}
-}
-
-func (s *InferenceService) Predict(input []float32) ([]float32, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	log.Println("Making prediction with input of length:", len(input))
-	return s.model.Predict(input)
-}
-
-func (s *InferenceService) PredictClass(input []float32) (int, float32, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	log.Println("Predicting class with input of length:", len(input))
-	return s.model.PredictClass(input)
 }
 
 func (s *InferenceService) GetTopKPredictions(input []float32, k int) ([]PredictionResult, error) {
@@ -89,16 +75,6 @@ func (s *InferenceService) GetClassName(classIndex int) (DiseaseClass, error) {
 	}
 
 	return DiseaseClass{}, fmt.Errorf("unknown class index: %d", classIndex)
-}
-
-func (s *InferenceService) ValidateInput(input []float32) error {
-
-	expectedSize := s.model.GetExpectedInputSize()
-	log.Printf("Validating input size: expected %d, got %d", expectedSize, len(input))
-	if len(input) != expectedSize {
-		return fmt.Errorf("invalid input size: expected %d, got %d", expectedSize, len(input))
-	}
-	return nil
 }
 
 func Preprocessing(buffer *[]byte) ([]float32, error) {

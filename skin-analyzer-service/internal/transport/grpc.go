@@ -18,11 +18,11 @@ import (
 
 type SkinAnalysisServer struct {
 	citra.UnimplementedSkinAnalysisServiceServer
-	inferenceService *service.InferenceService
+	inferenceService service.Inference
 	chronicEvent     chan event.Event
 }
 
-func NewSkinAnalysisServer(inferenceService *service.InferenceService, event chan event.Event) *SkinAnalysisServer {
+func NewSkinAnalysisServer(inferenceService service.Inference, event chan event.Event) *SkinAnalysisServer {
 	return &SkinAnalysisServer{
 		inferenceService: inferenceService,
 		chronicEvent:     event,
