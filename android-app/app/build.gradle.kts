@@ -33,9 +33,17 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"http://localhost:8088\"")
-            buildConfigField("String", "GRPC_HOST", "\"127.0.0.1\"")
-            buildConfigField("int", "GRPC_PORT", "8008")
+            buildConfigField(
+                "String",
+                "BASE_URL",
+                "\"https://dermato-ai-prototype-rest-477067570225.europe-west1.run.app\""
+            )
+            buildConfigField(
+                "String",
+                "GRPC_HOST",
+                "\"dermato-ai-prototype-grpc-477067570225.europe-west1.run.app\""
+            )
+            buildConfigField("int", "GRPC_PORT", "443")
         }
         debug {
             isMinifyEnabled = false
@@ -114,6 +122,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation("com.squareup.leakcanary:leakcanary-android:2.14")
 }
 
 protobuf {

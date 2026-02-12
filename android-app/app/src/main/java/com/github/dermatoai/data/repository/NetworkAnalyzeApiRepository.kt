@@ -88,8 +88,13 @@ class NetworkAnalyzeApiRepository @Inject constructor(
             emit(
                 AnalyzeSkinRequest.newBuilder()
                     .setInfo(
-                        ImageInfo.newBuilder().setImageType("jpeg").setUserId("android-user")
-                            .setClientSha256(ByteString.copyFrom(imageChecksum))
+                        ImageInfo.newBuilder()
+                            .setImageType("jpeg")
+                            .setUserId("android-user")
+                            .setClientSha256(
+                                ByteString
+                                    .copyFrom(imageChecksum)
+                            )
                             .build()
                     )
                     .build()
@@ -100,7 +105,11 @@ class NetworkAnalyzeApiRepository @Inject constructor(
                 val length = min(chunkSize, imageBytes.size - offset)
                 emit(
                     AnalyzeSkinRequest.newBuilder()
-                        .setChunk(ByteString.copyFrom(imageBytes, offset, length)).build()
+                        .setChunk(
+                            ByteString
+                                .copyFrom(imageBytes, offset, length)
+                        )
+                        .build()
                 )
                 offset += length
             }

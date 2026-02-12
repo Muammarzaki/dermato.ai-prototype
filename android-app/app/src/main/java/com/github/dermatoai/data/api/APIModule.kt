@@ -57,7 +57,13 @@ object APIModule {
     fun provideGrpcChannel(): ManagedChannel =
         ManagedChannelBuilder
             .forAddress(BuildConfig.GRPC_HOST, BuildConfig.GRPC_PORT)
-            .usePlaintext()
+            .also {
+                if (BuildConfig.DEBUG) {
+                    it.usePlaintext()
+                } else {
+                    it.useTransportSecurity()
+                }
+            }
             .keepAliveTime(30, TimeUnit.SECONDS)
             .keepAliveTimeout(5, TimeUnit.SECONDS)
             .keepAliveWithoutCalls(true)
