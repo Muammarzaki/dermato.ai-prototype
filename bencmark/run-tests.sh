@@ -1,226 +1,138 @@
 #!/bin/bash
-
-# K6 Load Testing Suite Runner
-# Usage: ./run-tests.sh [test-type] [scenario]
-# Example: ./run-tests.sh comparison
-#          ./run-tests.sh balanced load
-#          ./run-tests.sh full-suite
-
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Configuration
 RESULTS_DIR="./results"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+PREFIX=${PREFIX:-run}
+BUCKET="gs://benchmark-2026"
 
-# Create results directory
 mkdir -p "$RESULTS_DIR"
 
-# Helper functions
-print_header() {
-    echo -e "${BLUE}╔$(printf '═%.0s' {1..78})╗${NC}"
-    printf "${BLUE}║${NC} %-76s ${BLUE}║${NC}\n" "$1"
-    echo -e "${BLUE}╚$(printf '═%.0s' {1..78})╝${NC}"
-}
+info() { echo -e "\033[0;34mℹ $1\033[0m"; }
+ok()   { echo -e "\033[0;32m✓ $1\033[0m"; }
+warn() { echo -e "\033[1;33m⚠ $1\033[0m"; }
 
-print_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
+# ==========================
+# CHECK GCS ACCESS
+# ==========================
+UPLOAD_ENABLED=true
+info "Checking access to $BUCKET ..."
 
-print_error() {
-    echo -e "${RED}✗${NC} $1"
-}
+if ! command -v gsutil >/dev/null 2>&1; then
+    warn "gsutil not found — upload disabled"
+    UPLOAD_ENABLED=false
+elif ! gsutil ls "$BUCKET" >/dev/null 2>&1; then
+    warn "Cannot access bucket (not logged in or no permission)"
+    warn "Results will be saved locally only"
+    UPLOAD_ENABLED=false
+else
+    ok "Bucket access OK — upload enabled"
+fi
 
-print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
-
-# Run warmup
+# ==========================
+# Warmup (NO DATA)
+# ==========================
 run_warmup() {
-    print_header "Running Warmup Test"
-    print_info "Purpose: Prepare server for load testing"
-    print_info "Duration: 1 minute"
-    echo ""
-
-    k6 run src/tests/warmup.test.js \
-        --out json="$RESULTS_DIR/warmup_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/warmup_${TIMESTAMP}_summary.json"
-
-    print_success "Warmup completed"
-    print_info "Waiting 30 seconds for server stabilization..."
+    info "Warmup test (no data recorded)"
+    k6 run src/tests/warmup.test.js
+    ok "Warmup finished"
     sleep 30
-    echo ""
 }
 
-# Run smoke test
+# ==========================
+# Smoke
+# ==========================
 run_smoke() {
-    print_header "Running Smoke Test"
-    print_info "Scenario: Single user, basic functionality check"
-    print_info "Duration: 1 minute"
-    echo ""
-
+    local file="$RESULTS_DIR/${PREFIX}_smoke_${TIMESTAMP}.csv"
+    info "Smoke test"
     k6 run -e SCENARIO=smoke src/tests/balanced.test.js \
-        --out json="$RESULTS_DIR/smoke_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/smoke_${TIMESTAMP}_summary.json"
-
-    print_success "Smoke test completed"
-    echo ""
+        --out csv="$file"
+    upload "$file"
+    ok "Smoke finished"
 }
 
-# Run balanced test
+# ==========================
+# Balanced
+# ==========================
 run_balanced() {
     local scenario=${1:-load}
-
-    print_header "Running Balanced Test - ${scenario^^}"
-    print_info "Testing both gRPC and REST with ${scenario} scenario"
-    echo ""
-
+    local file="$RESULTS_DIR/${PREFIX}_balanced_${scenario}_${TIMESTAMP}.csv"
+    info "Balanced test: $scenario"
     k6 run -e SCENARIO="$scenario" src/tests/balanced.test.js \
-        --out json="$RESULTS_DIR/balanced_${scenario}_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/balanced_${scenario}_${TIMESTAMP}_summary.json"
-
-    print_success "Balanced test completed"
-    echo ""
+        --out csv="$file"
+    upload "$file"
+    ok "Balanced $scenario finished"
 }
 
-# Run comparison test
+# ==========================
+# Comparison
+# ==========================
 run_comparison() {
-    print_header "Running Comparison Test"
-    print_info "Direct side-by-side comparison with identical load"
-    print_info "Duration: 5 minutes, 10 VUs each"
-    echo ""
-
+    local file="$RESULTS_DIR/${PREFIX}_comparison_${TIMESTAMP}.csv"
+    info "Comparison test (gRPC vs REST)"
     k6 run src/tests/comparison.test.js \
-        --out json="$RESULTS_DIR/comparison_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/comparison_${TIMESTAMP}_summary.json"
-
-    print_success "Comparison test completed"
-    echo ""
+        --out csv="$file"
+    upload "$file"
+    ok "Comparison finished"
 }
 
-# Run full test suite
-run_full_suite() {
-    print_header "Running Full Test Suite"
-    echo ""
+# ==========================
+# Upload handler (SAFE)
+# ==========================
+upload() {
+    local file=$1
 
+    if [ "$UPLOAD_ENABLED" = false ]; then
+        warn "Upload skipped — file saved locally: $file"
+        return 0
+    fi
+
+    info "Uploading $(basename "$file") to $BUCKET"
+    if gsutil cp "$file" "$BUCKET/"; then
+        ok "Uploaded: $(basename "$file")"
+    else
+        warn "Upload failed — file kept locally"
+    fi
+}
+
+# ==========================
+# Full Suite
+# ==========================
+run_full_suite() {
     run_warmup
     run_smoke
 
-    print_info "Running multiple scenarios..."
-    echo ""
-
-    run_balanced "load"
+    run_balanced load
     sleep 30
 
-    run_balanced "stress"
+    run_balanced stress
     sleep 30
 
     run_comparison
-
-    print_header "Full Test Suite Completed"
-    print_success "All tests finished successfully"
-    print_info "Results saved in: $RESULTS_DIR"
-    echo ""
 }
 
-# Generate comparison report
-generate_report() {
-    print_header "Generating Comparison Report"
+# ==========================
+# Main
+# ==========================
+case "${1:-help}" in
+    smoke)      run_smoke ;;
+    balanced)   run_balanced "${2:-load}" ;;
+    comparison) run_warmup; run_comparison ;;
+    full-suite) run_full_suite ;;
+    *)
+        echo "Usage:"
+        echo "PREFIX=local ./run-tests.sh full-suite"
+        echo "PREFIX=server ./run-tests.sh comparison"
+        echo "PREFIX=simulate_worst_net ./run-tests.sh balanced stress"
+        exit 1
+        ;;
+esac
 
-    local comparison_file="$RESULTS_DIR/comparison_${TIMESTAMP}_summary.json"
+ok "Experiment finished"
+ok "Local results directory: $RESULTS_DIR"
 
-    if [ -f "$comparison_file" ]; then
-        echo ""
-        print_info "Backend Processing Time Comparison:"
-        echo ""
-
-        # Extract key metrics using jq (if available)
-        if command -v jq &> /dev/null; then
-            echo "gRPC Backend Processing:"
-            jq '.metrics.grpc_backend_processing_time' "$comparison_file" 2>/dev/null || echo "N/A"
-            echo ""
-            echo "REST Backend Processing:"
-            jq '.metrics.rest_backend_processing_time' "$comparison_file" 2>/dev/null || echo "N/A"
-        else
-            print_warning "Install 'jq' for detailed JSON parsing"
-            print_info "View results manually: cat $comparison_file"
-        fi
-    else
-        print_warning "Comparison results not found"
-    fi
-
-    echo ""
-}
-
-# Main script logic
-main() {
-    local test_type=${1:-help}
-    local scenario=${2:-load}
-
-    case "$test_type" in
-        warmup)
-            run_warmup
-            ;;
-        smoke)
-            run_smoke
-            ;;
-        balanced)
-            run_balanced "$scenario"
-            ;;
-        comparison)
-            run_warmup
-            run_comparison
-            generate_report
-            ;;
-        full-suite)
-            run_full_suite
-            generate_report
-            ;;
-        help|*)
-            print_header "Usage Instructions"
-            echo ""
-            echo "Usage: ./run-tests.sh [test-type] [scenario]"
-            echo ""
-            echo "Test Types:"
-            echo "  warmup              - Run warmup test only"
-            echo "  smoke               - Run smoke test (basic functionality)"
-            echo "  balanced [scenario] - Run balanced test with specific scenario"
-            echo "  comparison          - Run direct comparison test"
-            echo "  full-suite          - Run complete test suite"
-            echo "  help                - Show this help message"
-            echo ""
-            echo "Scenarios (for balanced test):"
-            echo "  smoke  - 1 VU for 1 minute"
-            echo "  load   - Ramp to 10 VUs (default)"
-            echo "  stress - Ramp to 40 VUs"
-            echo "  spike  - Sudden spike to 50 VUs"
-            echo "  soak   - 15 VUs for 30 minutes"
-            echo ""
-            echo "Examples:"
-            echo "  ./run-tests.sh smoke"
-            echo "  ./run-tests.sh balanced load"
-            echo "  ./run-tests.sh balanced stress"
-            echo "  ./run-tests.sh comparison"
-            echo "  ./run-tests.sh full-suite"
-            echo ""
-            exit 0
-            ;;
-    esac
-
-    print_header "Test Completed Successfully"
-    print_success "Results directory: $RESULTS_DIR"
-    echo ""
-}
-
-# Run main function
-main "$@"
+if [ "$UPLOAD_ENABLED" = true ]; then
+    ok "Cloud bucket: $BUCKET"
+else
+    warn "Cloud upload disabled — local only"
+fi
