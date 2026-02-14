@@ -38,6 +38,7 @@ const restClient = new RestClient(CONFIG.REST_ADDR);
 
 export function warmupGrpc() {
     group('gRPC Warmup', () => {
+        grpcClient.connect(CONFIG.TIMEOUT);
         const randomTestCase = randomItem(TEST_DATASET);
 
         grpcClient.analyzeSkin(
