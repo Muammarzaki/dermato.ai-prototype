@@ -1,9 +1,10 @@
 // src/tests/warmup.test.js
 
-import {CONFIG} from '../config/config.js';
+import {CONFIG, TEST_DATASET} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {RestClient} from '../utils/rest.utils.js';
-import {group, sleep} from 'k6';
+import {group} from 'k6';
+import {randomItem} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 export const options = {
     scenarios: {
@@ -37,37 +38,25 @@ const restClient = new RestClient(CONFIG.REST_ADDR);
 
 export function warmupGrpc() {
     group('gRPC Warmup', () => {
-        try {
-            grpcClient.connect(CONFIG.TIMEOUT)
-            grpcClient.analyzeSkin(
-                CONFIG.IMAGE_DATA,
-                CONFIG.SHA256_BASE64,
-                CONFIG.METADATA,
-                CONFIG.CHUNK_SIZE,
-                () => grpcClient.close()
-            );
-        } catch (_) {
-            // silent – warmup only
-        }
+        const randomTestCase = randomItem(TEST_DATASET);
 
-        sleep(2);
+        grpcClient.analyzeSkin(
+            randomTestCase,
+            CONFIG.METADATA,
+            CONFIG.CHUNK_SIZE,
+            () => grpcClient.close()
+        );
     });
 }
 
 export function warmupRest() {
     group('REST Warmup', () => {
-        try {
-            restClient.analyzeSkin(
-                CONFIG.IMAGE_DATA,
-                CONFIG.SHA256_HASH,
-                CONFIG.METADATA,
-                CONFIG.TIMEOUT
-            );
-        } catch (_) {
-            // silent – warmup only
-        }
-
-        sleep(2);
+        const randomTestCase = randomItem(TEST_DATASET);
+        restClient.analyzeSkin(
+            randomTestCase,
+            CONFIG.METADATA,
+            CONFIG.TIMEOUT
+        );
     });
 }
 

@@ -28,7 +28,7 @@ export class RestClient {
     }
 
     // Pastikan urutan parameter: imageData, sh256, metadata, timeout
-    analyzeSkin(imageData, sh256, metadata, timeout = '30s') {
+    analyzeSkin(testCase, metadata, timeout = '30s') {
         const start = Date.now();
         let hasError = false;
 
@@ -37,21 +37,20 @@ export class RestClient {
 
         // 1. Sanitasi Input: Konversi ke String agar aman untuk FormData
         const userIdSafe = String(metadata.user_id || "");
-        const sha256Safe = String(sh256 || "");
+        const sha256_HEX_Safe = String(testCase.hash_hex || "");
         const metaString = JSON.stringify(metadata.meta_tags || {});
 
         const formData = {
-            file: http.file(imageData, 'sample.jpg', 'image/jpeg'),
+            file: http.file(testCase.data, 'sample.jpg', 'image/jpeg'),
             user_id: userIdSafe,
-            client_sha256: sha256Safe,
+            client_sha256: sha256_HEX_Safe,
             metadata: metaString,
         };
 
-        // 2. Hitung size berdasarkan data yang benar-benar dikirim (bukan object mentah)
         const requestSize =
-            calcBytes(imageData) +
+            calcBytes(testCase.buffer) +
             calcBytes(userIdSafe) +
-            calcBytes(sha256Safe) +
+            calcBytes(sha256_HEX_Safe) +
             calcBytes(metaString);
 
         try {
@@ -92,8 +91,6 @@ export class RestClient {
             try {
                 body = JSON.parse(res.body);
             } catch (e) {
-                // Jika error parse, jangan set hasError=true dulu jika status sudah OK
-                // Biarkan check() di bawah yang memvalidasi struktur body
                 if (!ok) {
                     console.error(`REST JSON Parse Error: ${e.message}`);
                 }
@@ -112,6 +109,7 @@ export class RestClient {
                 'REST: has label': (r) => typeof r?.results?.[0]?.label === 'string',
                 'REST: has description': (r) => typeof r?.results?.[0]?.description === 'string',
                 'REST: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
+                "REST: has correct label": (r) => r.results[0].label === testCase.expected_label,
             });
 
             restReqSucceeded.add(!hasError);

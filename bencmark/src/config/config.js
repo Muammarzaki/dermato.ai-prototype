@@ -1,18 +1,39 @@
 import crypto from "k6/crypto";
 // src/config/config.js
-const imgData = open('../../test-images/sample.jpg', 'b');
-const sha256Hex = crypto.sha256(imgData, 'hex');
-const sha256Base64 = crypto.sha256(imgData, 'base64');
+const imgAcne = open('../../test-images/acne-closed-comedo-27.jpg', 'b');
+const imgBCC = open('../../test-images/basal-cell-carcinoma-lid-3.jpg', 'b');
+const imgBullous = open('../../test-images/benign-familial-chronic-pemphigus-11.jpg', 'b');
+const imgCacarAir = open('../../test-images/13_VI-chickenpox (22).jpg', 'b');
+const imgEczema = open('../../test-images/03EczemaExcoriated.jpg', 'b');
+const imgMelanoma = open('../../test-images/malignant-melanoma-17.jpg', 'b');
+const imgNevi = open('../../test-images/atypical-nevi-44.jpg', 'b');
+const imgUrticaria = open('../../test-images/dermagraphism-27.jpg', 'b');
+
+function createTestCase(filename, expectedLabel, buffer) {
+    return {
+        filename: filename,
+        expected_label: expectedLabel,
+        data: buffer,
+        hash_hex: crypto.sha256(buffer, 'hex'),      // Dipakai REST API
+        hash_base64: crypto.sha256(buffer, 'base64') // Dipakai gRPC API
+    };
+}
+
+export const TEST_DATASET = [
+    createTestCase('acne-closed-comedo-27.jpg', 'Acne', imgAcne),
+    createTestCase('basal-cell-carcinoma-lid-3.jpg', 'Basal Cell Carcinoma', imgBCC),
+    createTestCase('benign-familial-chronic-pemphigus-11.jpg', 'Bullous Disease', imgBullous),
+    createTestCase('13_VI-chickenpox (22).jpg', 'Cacar Air', imgCacarAir),
+    createTestCase('03EczemaExcoriated.jpg', 'Eczema', imgEczema),
+    createTestCase('malignant-melanoma-17.jpg', 'Skin Cancer', imgMelanoma),
+    createTestCase('atypical-nevi-44.jpg', 'Skin Cancer', imgNevi),
+    createTestCase('dermagraphism-27.jpg', 'Bullous Disease', imgUrticaria)
+];
 
 export const CONFIG = {
     // Server endpoints
     GRPC_ADDR: '127.0.0.1:8008',
     REST_ADDR: 'http://127.0.0.1:8088',
-
-    // Image data
-    IMAGE_DATA: imgData,
-    SHA256_HASH: sha256Hex,
-    SHA256_BASE64: sha256Base64,
 
     // Performance settings
     CHUNK_SIZE: 64 * 1024, // 64KB chunks for optimal performance

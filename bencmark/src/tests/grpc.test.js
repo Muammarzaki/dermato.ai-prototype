@@ -1,9 +1,9 @@
 // src/tests/grpc.test.js
 
-import {CONFIG, SCENARIOS, THRESHOLDS} from '../config/config.js';
+import {CONFIG, SCENARIOS, TEST_DATASET, THRESHOLDS} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {group, sleep} from 'k6';
-import {randomIntBetween} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
+import { randomItem } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const SCENARIO = __ENV.SCENARIO || 'load';
 
@@ -26,7 +26,7 @@ const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'skin_analyzer.proto');
 export function setup() {
     console.log(`Running ${SCENARIO} scenario - gRPC only`);
     console.log(`gRPC Address: ${CONFIG.GRPC_ADDR}`);
-    console.log(`Image size: ${CONFIG.IMAGE_DATA.byteLength} bytes`);
+    console.log(`Loaded ${TEST_DATASET.length} test images.`);
     console.log(`Chunk size: ${CONFIG.CHUNK_SIZE} bytes`);
     return {startTime: Date.now()};
 }
@@ -35,16 +35,14 @@ export function testGrpc() {
     group('gRPC Skin Analysis', () => {
         grpcClient.connect(CONFIG.TIMEOUT);
 
+        const randomTestCase = randomItem(TEST_DATASET);
+
         grpcClient.analyzeSkin(
-            CONFIG.IMAGE_DATA,
-            CONFIG.SHA256_BASE64,
+            randomTestCase,
             CONFIG.METADATA,
             CONFIG.CHUNK_SIZE,
             () => grpcClient.close()
         );
-
-        // Realistic delay between requests
-        sleep(randomIntBetween(1, 3));
     });
 }
 

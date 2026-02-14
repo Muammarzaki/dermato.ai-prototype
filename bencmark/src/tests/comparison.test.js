@@ -1,9 +1,10 @@
 // src/tests/comparison.test.js
 // This test runs gRPC and REST side-by-side for direct comparison
-import {CONFIG, THRESHOLDS} from '../config/config.js';
+import {CONFIG, TEST_DATASET, THRESHOLDS} from '../config/config.js';
 import {GrpcClient} from '../utils/grpc.utils.js';
 import {RestClient} from '../utils/rest.utils.js';
 import {group} from 'k6';
+import {randomItem} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 export const options = {
     scenarios: {
@@ -31,9 +32,10 @@ const restClient = new RestClient(CONFIG.REST_ADDR);
 export function testGrpc() {
     group('gRPC Protocol', () => {
         grpcClient.connect(CONFIG.TIMEOUT);
+        const randomTestCase = randomItem(TEST_DATASET);
+
         grpcClient.analyzeSkin(
-            CONFIG.IMAGE_DATA,
-            CONFIG.SHA256_BASE64,
+            randomTestCase,
             CONFIG.METADATA,
             CONFIG.CHUNK_SIZE,
             () => grpcClient.close()
@@ -43,9 +45,9 @@ export function testGrpc() {
 
 export function testRest() {
     group('REST Protocol', () => {
+        const randomTestCase = randomItem(TEST_DATASET);
         restClient.analyzeSkin(
-            CONFIG.IMAGE_DATA,
-            CONFIG.SHA256_HASH,
+            randomTestCase,
             CONFIG.METADATA,
             CONFIG.TIMEOUT
         );

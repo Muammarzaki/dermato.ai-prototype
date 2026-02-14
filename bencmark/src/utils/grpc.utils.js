@@ -42,7 +42,7 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(imageData, sha256, metadata, chunkSize = 64 * 1024, onClose = null) {
+    analyzeSkin(testCase, metadata, chunkSize = 64 * 1024, onClose = null) {
         const requestStart = Date.now();
         const streamStart = Date.now();
 
@@ -80,6 +80,10 @@ export class GrpcClient {
                 'gRPC: confidence valid': (r) =>
                     r.results?.[0]?.confidence >= 0 &&
                     r.results?.[0]?.confidence <= 1,
+                'gRPC: has label': (r) => typeof r?.results?.[0]?.label === 'string',
+                'gRPC: has description': (r) => typeof r?.results?.[0]?.description === 'string',
+                'gRPC: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
+                "gRPC: has correct label": (r) => r.results[0].label === testCase.expected_label,
             });
 
             if (!ok) hasError = true;
@@ -125,7 +129,7 @@ export class GrpcClient {
                 info: {
                     user_id: metadata.user_id,
                     image_type: metadata.image_type,
-                    client_sha256: sha256,
+                    client_sha256: testCase.hash_base64,
                     metadata: metadata.meta_tags,
                 },
             };
@@ -134,9 +138,9 @@ export class GrpcClient {
             bytesSent += calcBytes(metaMsg);
 
             let offset = 0;
-            while (offset < imageData.byteLength) {
-                const end = Math.min(offset + chunkSize, imageData.byteLength);
-                const chunk = imageData.slice(offset, end);
+            while (offset < testCase.data.byteLength) {
+                const end = Math.min(offset + chunkSize, testCase.data.byteLength);
+                const chunk = testCase.data.slice(offset, end);
 
                 stream.write({chunk: b64encode(chunk)});
 
