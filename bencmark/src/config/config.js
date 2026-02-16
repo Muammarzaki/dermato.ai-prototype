@@ -31,8 +31,8 @@ export const TEST_DATASET = [
 ];
 
 export const CONFIG = {
-    GRPC_ADDR: '127.0.0.1:8008',
-    REST_ADDR: 'http://127.0.0.1:8088',
+    GRPC_ADDR: __ENV.GRPC_ADDR || '127.0.0.1:8008',
+    REST_ADDR: __ENV.REST_ADDR || 'http://127.0.0.1:8088',
 
     CHUNK_SIZE: 64 * 1024, // 64KB chunks for optimal performance
     TIMEOUT: '30s',

@@ -4,6 +4,8 @@ set -e
 RESULTS_DIR="./results"
 LOG_DIR="./logs"
 SERVER_IP=${SERVER_IP:-127.0.0.1}
+GRPC_ADDR=${GRPC_ADDR:-127.0.0.1:8008}
+REST_ADDR=${REST_ADDR:-http://127.0.0.1:8088}
 BUCKET="gs://benchmark-2026"
 EXP_NAME=${EXP_NAME:-percobaan-1}
 
@@ -17,7 +19,7 @@ error() { echo -e "\033[0;31m✗ $1\033[0m"; }
 
 if [ "$EUID" -ne 0 ]; then
     error "This script requires root privileges"
-    warn "Run as: sudo EXP_NAME=percobaan-1 SERVER_IP=127.0.0.1 $0"
+    warn "Run as: sudo -E EXP_NAME=percobaan-1 SERVER_IP=127.0.0.1 $0"
     exit 1
 fi
 
@@ -37,7 +39,10 @@ run_single_test() {
     local remote_path="$BUCKET/${EXP_NAME}/${network}/${scenario}/"
 
     log "Running $protocol test..."
-    k6 run -e SCENARIO="$scenario" "src/tests/${protocol}.test.js" \
+    k6 run -e SCENARIO="$scenario" \
+           -e GRPC_ADDR="$GRPC_ADDR" \
+           -e REST_ADDR="$REST_ADDR" \
+           "src/tests/${protocol}.test.js" \
         --out csv="$local_file" >> "$LOGFILE" 2>&1
 
     log "Uploading to $remote_path"
@@ -58,6 +63,8 @@ run_experiment() {
     log "Experiment: $EXP_NAME"
     log "Network: $network_condition"
     log "Scenario: $scenario"
+    log "gRPC: $GRPC_ADDR"
+    log "REST: $REST_ADDR"
     log "=========================================="
 
     if [ "$network_condition" != "normal" ]; then
@@ -82,6 +89,8 @@ run_experiment() {
 info "Starting FULL benchmark suite"
 info "Experiment name: $EXP_NAME"
 info "Server IP: $SERVER_IP"
+info "gRPC Address: $GRPC_ADDR"
+info "REST Address: $REST_ADDR"
 info "Log file: $LOGFILE"
 info "This will run in background. Monitor: tail -f $LOGFILE"
 echo ""
@@ -90,6 +99,8 @@ echo ""
     log "=========================================="
     log "BENCHMARK SUITE: $EXP_NAME"
     log "Server: $SERVER_IP"
+    log "gRPC: $GRPC_ADDR"
+    log "REST: $REST_ADDR"
     log "Started: $(date)"
     log "=========================================="
 
@@ -142,6 +153,8 @@ BACKGROUND_PID=$!
 
 ok "Benchmark suite started in background (PID: $BACKGROUND_PID)"
 ok "Experiment: $EXP_NAME"
+ok "gRPC: $GRPC_ADDR"
+ok "REST: $REST_ADDR"
 ok "Monitor progress: tail -f $LOGFILE"
 ok "Stop anytime: sudo kill $BACKGROUND_PID"
 echo ""
