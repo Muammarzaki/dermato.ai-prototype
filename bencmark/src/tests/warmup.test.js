@@ -37,8 +37,9 @@ const grpcClient = new GrpcClient(CONFIG.GRPC_ADDR, 'skin_analyzer.proto');
 const restClient = new RestClient(CONFIG.REST_ADDR);
 
 export function warmupGrpc() {
+    grpcClient.connect(CONFIG.TIMEOUT);
+
     group('gRPC Warmup', () => {
-        grpcClient.connect(CONFIG.TIMEOUT);
         const randomTestCase = randomItem(TEST_DATASET);
 
         grpcClient.analyzeSkin(

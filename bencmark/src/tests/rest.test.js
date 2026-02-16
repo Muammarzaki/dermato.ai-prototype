@@ -6,7 +6,9 @@ import {randomItem} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 const SCENARIO = __ENV.SCENARIO || 'load';
 
 export const options = {
-    ...SCENARIOS[SCENARIO],
+    scenarios: {
+        execution_benchmark: SCENARIOS[SCENARIO],
+    },
 };
 
 const restClient = new RestClient(CONFIG.REST_ADDR);

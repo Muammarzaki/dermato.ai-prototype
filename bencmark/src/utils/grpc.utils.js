@@ -34,7 +34,8 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(testCase, metadata, chunkSize = 64 * 1024) {
+    analyzeSkin(testCase, metadata, chunkSize = 64 * 1024, onClose = () => {
+    }) {
         const requestStart = Date.now();
         const streamStart = Date.now();
 
@@ -104,6 +105,7 @@ export class GrpcClient {
 
             this.activeStreamCount--;
             grpcActiveStreams.add(this.activeStreamCount);
+            onClose();
         });
 
         try {

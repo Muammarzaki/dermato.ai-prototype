@@ -124,7 +124,7 @@ run_test() {
   set -e
 
   if [ $exit_code -eq 0 ] && [ -f "$out" ]; then
-    echo "$out"
+    upload_file "$out" "$net" "$scenario"
     return 0
   else
     error "Test failed for $proto $scenario on $net network (Exit code: $exit_code)"
@@ -174,11 +174,7 @@ full_suite() {
 
     for scenario in "${SCENARIOS[@]}"; do
       for proto in "${PROTOS[@]}"; do
-        if result_file=$(run_test "$proto" "$scenario" "$net"); then
-          upload_file "$result_file" "$net" "$scenario"
-        else
-          warn "Skipping upload for failed test: $proto $scenario"
-        fi
+        run_test "$proto" "$scenario" "$net" || true
       done
     done
 
