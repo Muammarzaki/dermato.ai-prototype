@@ -4,6 +4,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+TEST_DIR="$SCRIPT_DIR/src/tests"
+
 ### ========= GLOBAL CONFIG =========
 IFACE=${IFACE:-enp4}
 EXP_NAME=${EXP_NAME:-percobaan-1}
