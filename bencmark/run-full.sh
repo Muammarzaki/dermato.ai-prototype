@@ -29,6 +29,8 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOGFILE"
 }
 
+trap './net-sim.sh normal >/dev/null 2>&1 || true' INT TERM EXIT
+
 run_single_test() {
     local protocol=$1
     local network=$2
@@ -39,11 +41,12 @@ run_single_test() {
     local remote_path="$BUCKET/${EXP_NAME}/${network}/${scenario}/"
 
     log "Running $protocol test..."
+
     k6 run -e SCENARIO="$scenario" \
            -e GRPC_ADDR="$GRPC_ADDR" \
            -e REST_ADDR="$REST_ADDR" \
            "src/tests/${protocol}.test.js" \
-        --out csv="$local_file" >> "$LOGFILE" 2>&1
+           --out csv="$local_file" >> "$LOGFILE" 2>&1 || warn "$protocol $scenario failed"
 
     log "Uploading to $remote_path"
     if gsutil cp "$local_file" "$remote_path" >> "$LOGFILE" 2>&1; then
@@ -69,7 +72,7 @@ run_experiment() {
 
     if [ "$network_condition" != "normal" ]; then
         log "Applying network simulation: $network_condition"
-        SERVER_IP=$SERVER_IP ./net-sim.sh "$network_condition" >> "$LOGFILE" 2>&1
+        SERVER_IP=$SERVER_IP ./net-sim.sh "$network_condition" >> "$LOGFILE" 2>&1 || warn "net-sim failed"
         sleep 5
     fi
 
@@ -78,7 +81,7 @@ run_experiment() {
 
     if [ "$network_condition" != "normal" ]; then
         log "Resetting network..."
-        ./net-sim.sh normal >> "$LOGFILE" 2>&1
+        ./net-sim.sh normal >> "$LOGFILE" 2>&1 || warn "net reset failed"
         sleep 5
     fi
 
@@ -96,6 +99,8 @@ info "This will run in background. Monitor: tail -f $LOGFILE"
 echo ""
 
 {
+    set +e
+
     log "=========================================="
     log "BENCHMARK SUITE: $EXP_NAME"
     log "Server: $SERVER_IP"
@@ -104,35 +109,30 @@ echo ""
     log "Started: $(date)"
     log "=========================================="
 
-    # Normal network
     run_experiment "normal" "smoke"
     run_experiment "normal" "load"
     run_experiment "normal" "stress"
     run_experiment "normal" "spike"
     run_experiment "normal" "soak"
 
-    # Poor network
     run_experiment "poor" "smoke"
     run_experiment "poor" "load"
     run_experiment "poor" "stress"
     run_experiment "poor" "spike"
     run_experiment "poor" "soak"
 
-    # Worst network
     run_experiment "worst" "smoke"
     run_experiment "worst" "load"
     run_experiment "worst" "stress"
     run_experiment "worst" "spike"
     run_experiment "worst" "soak"
 
-    # 3G network
     run_experiment "3g" "smoke"
     run_experiment "3g" "load"
     run_experiment "3g" "stress"
     run_experiment "3g" "spike"
     run_experiment "3g" "soak"
 
-    # 4G network
     run_experiment "4g" "smoke"
     run_experiment "4g" "load"
     run_experiment "4g" "stress"
