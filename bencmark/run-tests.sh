@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 RESULTS_DIR="./results"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 EXP=${EXP:-default}
@@ -56,10 +59,14 @@ run_grpc() {
     local file="$RESULTS_DIR/${EXP}_grpc_${scenario}_${TIMESTAMP}.csv"
 
     info "Running gRPC test: $scenario"
-    k6 run -e SCENARIO="$scenario" src/tests/grpc.test.js \
-        --out csv="$file"
-    upload "$file" "$scenario"
-    ok "gRPC $scenario finished"
+
+    if k6 run -e SCENARIO="$scenario" src/tests/grpc.test.js --out csv="$file"; then
+        upload "$file" "$scenario"
+        ok "gRPC $scenario finished"
+    else
+        warn "gRPC $scenario failed — upload skipped"
+        return 0
+    fi
 }
 
 run_rest() {
@@ -73,18 +80,19 @@ run_rest() {
     ok "REST $scenario finished"
 }
 
-run_scenario() {
+run_rest() {
     local scenario=${1:-load}
+    local file="$RESULTS_DIR/${EXP}_rest_${scenario}_${TIMESTAMP}.csv"
 
-    info "=== Starting scenario: $scenario ==="
+    info "Running REST test: $scenario"
 
-    run_grpc "$scenario"
-    sleep 60
-
-    run_rest "$scenario"
-    sleep 60
-
-    ok "=== Scenario $scenario complete ==="
+    if k6 run -e SCENARIO="$scenario" src/tests/rest.test.js --out csv="$file"; then
+        upload "$file" "$scenario"
+        ok "REST $scenario finished"
+    else
+        warn "REST $scenario failed — upload skipped"
+        return 0
+    fi
 }
 
 run_full_suite() {
