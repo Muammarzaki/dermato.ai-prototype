@@ -104,11 +104,16 @@ run_test() {
   local net=$3
   local ts=$(date +%Y%m%d_%H%M%S)
   local out="$RESULTS_DIR/${proto}_${net}_${scenario}_${ts}.csv"
+  local test_file="$TEST_DIR/${proto}.test.js"
+
+ if [ ! -f "$test_file" ]; then
+    error "Test file not found: $test_file"
+    return 1
+  fi
 
   log "Running $proto | $scenario | $net"
 
-  if k6 run -e SCENARIO="$scenario" \
-      src/tests/$proto.test.js \
+  if k6 run -e SCENARIO="$scenario" "$test_file" \
       --out csv="$out" >>"$LOGFILE" 2>&1; then
     echo "$out"
   else
