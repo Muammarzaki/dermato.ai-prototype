@@ -25,7 +25,7 @@ fi
 reset_net() {
     info "Resetting network simulation on $IFACE"
     tc qdisc del dev "$IFACE" root 2>/dev/null || true
-    tc filter del dev "$IFACE" 2>/dev/null || true
+    tc qdisc del dev "$IFACE" ingress 2>/dev/null || true
     ok "Network back to NORMAL (no simulation active)"
 }
 
