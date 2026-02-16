@@ -87,7 +87,7 @@ doctor() {
   done
 
   # 4. Cek k6 via real user
-  if sudo -u "$REAL_USER" command -v k6 >/dev/null; then
+  if sudo -u "$REAL_USER" bash -c 'command -v k6' >/dev/null; then
     echo "✓ Command 'k6' is installed for user $REAL_USER"
   else
     error "Command 'k6' is missing for user $REAL_USER"
@@ -159,7 +159,7 @@ upload_file() {
   local net=$2
   local scenario=$3
 
-  if ! sudo -u "$REAL_USER" command -v gsutil >/dev/null 2>&1; then
+  if ! sudo -u "$REAL_USER" bash -c 'command -v gsutil' >/dev/null 2>&1; then
     warn "Upload skipped: gsutil missing"
     return 0
   fi
