@@ -1,23 +1,14 @@
 #!/bin/bash
-# ==============================================================================
-# Skin Analyzer Benchmark Suite - Hardened & Error Tolerant Version
-# ==============================================================================
-
-# Strict bash mode:
-# -e: exit on error, -u: exit on undefined variable, -o pipefail: catch errors in pipelines
 set -euo pipefail
 
-# Menentukan direktori script absolute untuk menghindari relative path error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 TEST_DIR="$SCRIPT_DIR/src/tests"
 
-### ========= GLOBAL CONFIG =========
-# Menggunakan default value, tapi bisa di-override via env vars
 IFACE=${IFACE:-enp4}
 EXP_NAME=${EXP_NAME:-percobaan-1}
-BUCKET=${BUCKET:-"gs://benchmark-2026"} # Pastikan nama bucket ini valid/unik!
+BUCKET=${BUCKET:-"gs://benchmark-2026"}
 RESULTS_DIR="$SCRIPT_DIR/results"
 LOG_DIR="$SCRIPT_DIR/logs"
 
@@ -25,42 +16,32 @@ NETWORKS=(normal poor worst 3g 4g)
 SCENARIOS=(smoke load stress spike soak)
 PROTOS=(grpc rest)
 
-# Deteksi user asli yang mengeksekusi sudo, fallback ke user saat ini jika bukan sudo
 REAL_USER=${SUDO_USER:-$USER}
 REAL_GROUP=$(id -gn "$REAL_USER")
 
-# Setup folder & file log
 mkdir -p "$RESULTS_DIR" "$LOG_DIR"
 LOGFILE="$LOG_DIR/${EXP_NAME}_$(date +%Y%m%d_%H%M%S).log"
 touch "$LOGFILE"
 
-# Kembalikan kepemilikan folder log & result ke user asli, bukan root!
 chown -R "$REAL_USER:$REAL_GROUP" "$RESULTS_DIR" "$LOG_DIR"
 
-### ========= LOGGING HELPERS =========
-# Log otomatis tercatat ke file dan terminal dengan warna
 log()  { echo "[$(date '+%F %T')] $1" | tee -a "$LOGFILE"; }
 info() { echo -e "\033[0;34mℹ $1\033[0m" | tee -a "$LOGFILE"; }
 warn() { echo -e "\033[1;33m⚠ $1\033[0m" | tee -a "$LOGFILE"; }
 error(){ echo -e "\033[0;31m✗ $1\033[0m" >&2 | tee -a "$LOGFILE"; }
 
-### ========= CLEANUP TRAP =========
-# Trap akan SELALU dieksekusi ketika script berhenti (sukses, error, atau di-cancel Ctrl+C)
 net_reset() {
-  # 2>/dev/null menyembunyikan error jika qdisc memang belum ada (idempotent)
   tc qdisc del dev "$IFACE" root 2>/dev/null || true
   info "Network traffic control reset on $IFACE."
 }
 trap 'net_reset' INT TERM EXIT ERR
 
-### ========= DOCTOR =========
 doctor() {
   echo "=========================================="
   echo " BENCHMARK DOCTOR CHECK (PRE-FLIGHT)"
   echo "=========================================="
   local fail=0
 
-  # 1. Cek Root
   if [ "$EUID" -ne 0 ]; then
     error "Must run as root (use: sudo ./benchmark.sh)"
     fail=1
@@ -68,7 +49,6 @@ doctor() {
     echo "✓ Running with root privileges (sudo mode detected: user $REAL_USER)"
   fi
 
-  # 2. Cek Network Interface
   if ip link show "$IFACE" >/dev/null 2>&1; then
     echo "✓ Network interface found: $IFACE"
   else
@@ -76,18 +56,17 @@ doctor() {
     fail=1
   fi
 
-  # 3. Cek Dependensi
   for cmd in tc gsutil; do
     if command -v "$cmd" >/dev/null; then
       echo "✓ Command '$cmd' is installed"
     else
       warn "Command '$cmd' is missing. Some features may not work."
-      [ "$cmd" == "tc" ] && fail=1 # tc is mandatory
+      [ "$cmd" == "tc" ] && fail=1
     fi
   done
 
-  # 4. Cek k6 via real user
-  if sudo -u "$REAL_USER" bash -c 'command -v k6' >/dev/null; then
+  # Diperbarui dengan -H
+  if sudo -u "$REAL_USER" -H bash -c 'command -v k6' >/dev/null 2>&1; then
     echo "✓ Command 'k6' is installed for user $REAL_USER"
   else
     error "Command 'k6' is missing for user $REAL_USER"
@@ -104,12 +83,10 @@ doctor() {
   fi
 }
 
-### ========= NETWORK =========
 net_apply() {
   local mode=$1
-  net_reset # Pastikan aturan lama bersih sebelum pasang yang baru
+  net_reset
 
-  # Pasang qdisc baru. Jika gagal, script tidak langsung crash berkat penanganan || log
   case "$mode" in
     normal) ;;
     poor)  tc qdisc add dev "$IFACE" root netem delay 100ms loss 1% || warn "Failed to set poor network" ;;
@@ -120,7 +97,6 @@ net_apply() {
   esac
 }
 
-### ========= TEST =========
 run_test() {
   local proto=$1
   local scenario=$2
@@ -136,39 +112,42 @@ run_test() {
 
   info "Starting k6: [$proto] | Scenario: [$scenario] | Network: [$net]"
 
-  # EXECUTION CORE: Jalankan k6 sebagai user asli (-u) dan bawa environment variables (-E)
-  # Set +e agar k6 failure tidak mematikan bash script utama
+  # EXECUTION CORE: Menggunakan -H agar cache folder tepat sasaran,
+  # dan variabel GRPC/REST di-inject secara native ke k6
   set +e
-  sudo -u "$REAL_USER" -E k6 run -e SCENARIO="$scenario" "$test_file" --out csv="$out" >>"$LOGFILE" 2>&1
+  sudo -u "$REAL_USER" -H k6 run \
+    -e SCENARIO="$scenario" \
+    -e REST_ADDR="${REST_ADDR:-}" \
+    -e GRPC_ADDR="${GRPC_ADDR:-}" \
+    "$test_file" --out csv="$out" >>"$LOGFILE" 2>&1
   local exit_code=$?
   set -e
 
   if [ $exit_code -eq 0 ] && [ -f "$out" ]; then
-    echo "$out" # Print filename for upload phase
+    echo "$out"
     return 0
   else
     error "Test failed for $proto $scenario on $net network (Exit code: $exit_code)"
-    sudo -u "$REAL_USER" rm -f "$out" # Clean up empty/corrupt CSV
+    sudo -u "$REAL_USER" -H rm -f "$out"
     return 1
   fi
 }
 
-### ========= UPLOAD =========
 upload_file() {
   local file=$1
   local net=$2
   local scenario=$3
 
-  if ! sudo -u "$REAL_USER" bash -c 'command -v gsutil' >/dev/null 2>&1; then
+  if ! sudo -u "$REAL_USER" -H bash -c 'command -v gsutil' >/dev/null 2>&1; then
     warn "Upload skipped: gsutil missing"
     return 0
   fi
 
   info "Uploading $(basename "$file") to GCP..."
 
-  # EXECUTION CORE: gsutil dijalankan sebagai user asli agar otentikasi GCP terbaca
+  # EXECUTION CORE: gsutil sekarang menggunakan konfigurasi dan kredensial GCP user Anda
   set +e
-  sudo -u "$REAL_USER" gsutil cp "$file" "$BUCKET/$EXP_NAME/$net/$scenario/" >>"$LOGFILE" 2>&1
+  sudo -u "$REAL_USER" -H gsutil cp "$file" "$BUCKET/$EXP_NAME/$net/$scenario/" >>"$LOGFILE" 2>&1
   local upload_status=$?
   set -e
 
@@ -179,7 +158,6 @@ upload_file() {
   fi
 }
 
-### ========= FULL SUITE =========
 full_suite() {
   info "=========================================="
   info " STARTING FULL BENCHMARK SUITE"
@@ -196,14 +174,11 @@ full_suite() {
 
     for scenario in "${SCENARIOS[@]}"; do
       for proto in "${PROTOS[@]}"; do
-
-        # Eksekusi test. Jika gagal, catat error dan lanjut iterasi berikutnya (Fault Tolerant)
         if result_file=$(run_test "$proto" "$scenario" "$net"); then
           upload_file "$result_file" "$net" "$scenario"
         else
           warn "Skipping upload for failed test: $proto $scenario"
         fi
-
       done
     done
 
@@ -216,8 +191,6 @@ full_suite() {
   info "=========================================="
 }
 
-### ========= MAIN ROUTINE =========
-# Memastikan setidaknya satu argument diberikan, jika tidak jalankan 'full'
 ACTION=${1:-full}
 
 case "$ACTION" in
@@ -227,10 +200,10 @@ case "$ACTION" in
   full)   doctor && full_suite ;;
   *)
     echo "Usage:"
-    echo "  sudo IFACE=enp4 EXP_NAME=percobaan-1 ./benchmark.sh doctor"
-    echo "  sudo IFACE=enp4 ./benchmark.sh net <normal|poor|worst|3g|4g>"
-    echo "  sudo IFACE=enp4 ./benchmark.sh test"
-    echo "  sudo REST_ADDR=http://10.128.0.2:8088 IFACE=enp4 ./benchmark.sh full"
+    echo "  sudo IFACE=ens4 EXP_NAME=percobaan-1 ./benchmark.sh doctor"
+    echo "  sudo IFACE=ens4 ./benchmark.sh net <normal|poor|worst|3g|4g>"
+    echo "  sudo IFACE=ens4 ./benchmark.sh test"
+    echo "  sudo GRPC_ADDR=10.128.0.2:8008 REST_ADDR=http://10.128.0.2:8088 IFACE=ens4 ./benchmark.sh full"
     exit 1
   ;;
 esac
