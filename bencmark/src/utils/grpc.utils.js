@@ -1,11 +1,9 @@
-// src/utils/grpc.utils.js
 import grpc from 'k6/net/grpc';
 import {check} from 'k6';
 import {b64encode} from 'k6/encoding';
 import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
 import {calcBytes} from './bytes.js';
 
-// ===================== METRICS =====================
 const grpcReqDuration = new Trend('grpc_req_duration', true);
 const grpcWaitingTime = new Trend('grpc_req_waiting', true);
 const grpcSendingTime = new Trend('grpc_req_sending', true);
@@ -13,17 +11,11 @@ const grpcConnectingTime = new Trend('grpc_req_connecting', true);
 
 const grpcReqSending = new Counter('grpc_data_sent');
 const grpcReqReceived = new Counter('grpc_data_received');
-const grpcChunkSize = new Trend('grpc_chunk_size', true);
-const grpcChunksPerRequest = new Trend('grpc_chunks_per_request', true);
-
 const grpcStreamDuration = new Trend('grpc_stream_duration', true);
-const grpcMessagesPerStream = new Trend('grpc_messages_per_stream', true);
-
 const grpcReqFailed = new Counter('grpc_req_failed');
 const grpcReqSucceeded = new Rate('grpc_req_success_rate');
 const grpcActiveStreams = new Gauge('grpc_active_streams');
 
-// ===================== CLIENT =====================
 export class GrpcClient {
     constructor(address, protoPath) {
         this.client = new grpc.Client();
@@ -42,7 +34,7 @@ export class GrpcClient {
         this.client.close();
     }
 
-    analyzeSkin(testCase, metadata, chunkSize = 64 * 1024, onClose = null) {
+    analyzeSkin(testCase, metadata, chunkSize = 64 * 1024) {
         const requestStart = Date.now();
         const streamStart = Date.now();
 
@@ -64,7 +56,6 @@ export class GrpcClient {
             {tags: {protocol: 'grpc'}}
         );
 
-        // ================= RESPONSE =================
         stream.on('data', (res) => {
             if (!responseReceived) {
                 responseStart = Date.now();
@@ -83,20 +74,18 @@ export class GrpcClient {
                 'gRPC: has label': (r) => typeof r?.results?.[0]?.label === 'string',
                 'gRPC: has description': (r) => typeof r?.results?.[0]?.description === 'string',
                 'gRPC: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
-                "gRPC: has correct label": (r) => r.results[0].label === testCase.expected_label,
+                'gRPC: has correct label': (r) => r.results[0].label === testCase.expected_label,
             });
 
             if (!ok) hasError = true;
         });
 
-        // ================= ERROR =================
         stream.on('error', (err) => {
             hasError = true;
             grpcReqFailed.add(1);
             console.error(`gRPC Error [${err.code}]: ${err.message}`);
         });
 
-        // ================= END =================
         stream.on('end', () => {
             grpcReqDuration.add(Date.now() - requestStart);
             grpcStreamDuration.add(Date.now() - streamStart);
@@ -111,17 +100,12 @@ export class GrpcClient {
 
             grpcReqSending.add(bytesSent);
             grpcReqReceived.add(bytesReceived);
-            grpcChunksPerRequest.add(chunks);
-            grpcMessagesPerStream.add(chunks + 1);
             grpcReqSucceeded.add(!hasError);
 
             this.activeStreamCount--;
             grpcActiveStreams.add(this.activeStreamCount);
-
-            if (onClose) onClose();
         });
 
-        // ================= SEND =================
         try {
             sendingStart = Date.now();
 
@@ -146,7 +130,6 @@ export class GrpcClient {
 
                 const size = end - offset;
                 bytesSent += size;
-                grpcChunkSize.add(size);
                 chunks++;
 
                 offset = end;

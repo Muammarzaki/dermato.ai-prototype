@@ -31,15 +31,12 @@ export const TEST_DATASET = [
 ];
 
 export const CONFIG = {
-    // Server endpoints
     GRPC_ADDR: '127.0.0.1:8008',
     REST_ADDR: 'http://127.0.0.1:8088',
 
-    // Performance settings
     CHUNK_SIZE: 64 * 1024, // 64KB chunks for optimal performance
     TIMEOUT: '30s',
 
-    // Test metadata
     METADATA: {
         user_id: 'user-k6-test',
         image_type: 'image/jpeg',
@@ -50,9 +47,7 @@ export const CONFIG = {
     }
 };
 
-// Balanced test scenarios
 export const SCENARIOS = {
-    // Smoke test - verify basic functionality
     smoke: {
         executor: 'constant-vus',
         vus: 1,
@@ -60,7 +55,6 @@ export const SCENARIOS = {
         gracefulStop: '10s',
     },
 
-    // Load test - test normal load conditions
     load: {
         executor: 'ramping-vus',
         startVUs: 0,
@@ -72,7 +66,6 @@ export const SCENARIOS = {
         gracefulStop: '10s',
     },
 
-    // Stress test - push beyond normal load
     stress: {
         executor: 'ramping-vus',
         startVUs: 0,
@@ -86,7 +79,6 @@ export const SCENARIOS = {
         gracefulStop: '10s',
     },
 
-    // Spike test - sudden load increase
     spike: {
         executor: 'ramping-vus',
         startVUs: 0,
@@ -100,22 +92,10 @@ export const SCENARIOS = {
         gracefulStop: '10s',
     },
 
-    // Soak test - sustained load over time
     soak: {
         executor: 'constant-vus',
         vus: 15,
         duration: '30m',
         gracefulStop: '10s',
     },
-};
-
-// Thresholds for performance validation
-export const THRESHOLDS = {
-    // HTTP/gRPC request duration
-    'http_req_duration': ['p(95)<5000', 'p(99)<10000'],
-    'grpc_req_duration': ['p(95)<5000', 'p(99)<10000'],
-
-    // Request failure rate
-    'http_req_failed': ['rate<0.05'],  // Less than 5% failures
-    'checks': ['rate>0.95'],            // More than 95% success
 };

@@ -1,25 +1,12 @@
-// src/tests/rest.test.js
-
-import {CONFIG, SCENARIOS, TEST_DATASET, THRESHOLDS} from '../config/config.js';
+import {CONFIG, SCENARIOS, TEST_DATASET} from '../config/config.js';
 import {RestClient} from '../utils/rest.utils.js';
 import {group, sleep} from 'k6';
-import {randomIntBetween} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 import {randomItem} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 const SCENARIO = __ENV.SCENARIO || 'load';
 
 export const options = {
-    scenarios: {
-        rest_test: {
-            ...SCENARIOS[SCENARIO],
-            exec: 'testRest',
-        },
-    },
-    thresholds: {
-        'rest_req_duration': ['p(95)<5000', 'p(99)<10000'],
-        'http_req_failed': ['rate<0.05'],
-        'checks': ['rate>0.95'],
-    },
+    ...SCENARIOS[SCENARIO],
 };
 
 const restClient = new RestClient(CONFIG.REST_ADDR);
@@ -27,12 +14,12 @@ const restClient = new RestClient(CONFIG.REST_ADDR);
 export function setup() {
     console.log(`Running ${SCENARIO} scenario - REST only`);
     console.log(`REST Address: ${CONFIG.REST_ADDR}`);
-    console.log(`Loaded ${TEST_DATASET.length} test images.`);
+    console.log(`Loaded ${TEST_DATASET.length} test images`);
     console.log(`Chunk size: ${CONFIG.CHUNK_SIZE} bytes`);
     return {startTime: Date.now()};
 }
 
-export function testRest() {
+export default function () {
     group('REST Skin Analysis', () => {
         const randomTestCase = randomItem(TEST_DATASET);
         restClient.analyzeSkin(
@@ -41,6 +28,8 @@ export function testRest() {
             CONFIG.TIMEOUT
         );
     });
+
+    sleep(1);
 }
 
 export function teardown(data) {

@@ -1,10 +1,8 @@
-// src/utils/rest.utils.js
 import http from 'k6/http';
 import {check} from 'k6';
 import {Trend, Counter, Rate, Gauge} from 'k6/metrics';
 import {calcBytes} from './bytes.js';
 
-// ================= METRICS =================
 const restReqDuration = new Trend('rest_req_duration', true);
 const restReqWaiting = new Trend('rest_req_waiting', true);
 const restReqSending = new Trend('rest_req_sending', true);
@@ -20,14 +18,12 @@ const restReqFailed = new Counter('rest_req_failed');
 const restReqSucceeded = new Rate('rest_req_success_rate');
 const restActiveRequests = new Gauge('rest_active_requests');
 
-// ================= CLIENT =================
 export class RestClient {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
         this.active = 0;
     }
 
-    // Pastikan urutan parameter: imageData, sh256, metadata, timeout
     analyzeSkin(testCase, metadata, timeout = '30s') {
         const start = Date.now();
         let hasError = false;
@@ -35,7 +31,6 @@ export class RestClient {
         this.active++;
         restActiveRequests.add(this.active);
 
-        // 1. Sanitasi Input: Konversi ke String agar aman untuk FormData
         const userIdSafe = String(metadata.user_id || "");
         const sha256_HEX_Safe = String(testCase.hash_hex || "");
         const metaString = JSON.stringify(metadata.meta_tags || {});
@@ -58,17 +53,13 @@ export class RestClient {
                 `${this.baseUrl}/analyze-skin`,
                 formData,
                 {
-                    timeout: timeout, // Pastikan ini string '30s' dari parameter default/input
+                    timeout: timeout,
                     tags: {protocol: 'rest'},
-                    headers: {
-                        'Connection': 'close'
-                    }
                 }
             );
 
             restReqDuration.add(Date.now() - start);
 
-            // Record detailed timings
             const t = res.timings || {};
             if (t.blocked) restReqBlocked.add(t.blocked);
             if (t.connecting) restReqConnecting.add(t.connecting);
@@ -95,9 +86,11 @@ export class RestClient {
                     console.error(`REST JSON Parse Error: ${e.message}`);
                 }
             }
+
             check(res, {
                 'REST: status is 200': (r) => r.status === 200,
-            })
+            });
+
             check(body, {
                 'REST: response exists': (r) => r !== null,
                 'REST: has analysis_id': (r) => typeof r?.analysis_id === 'string',
@@ -109,7 +102,7 @@ export class RestClient {
                 'REST: has label': (r) => typeof r?.results?.[0]?.label === 'string',
                 'REST: has description': (r) => typeof r?.results?.[0]?.description === 'string',
                 'REST: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
-                "REST: has correct label": (r) => r.results[0].label === testCase.expected_label,
+                'REST: has correct label': (r) => r.results[0].label === testCase.expected_label,
             });
 
             restReqSucceeded.add(!hasError);

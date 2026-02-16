@@ -3,7 +3,7 @@ set -e
 
 RESULTS_DIR="./results"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-PREFIX=${PREFIX:-run}
+EXP=${EXP:-default}
 BUCKET="gs://benchmark-2026"
 
 mkdir -p "$RESULTS_DIR"
@@ -12,9 +12,6 @@ info() { echo -e "\033[0;34mℹ $1\033[0m"; }
 ok()   { echo -e "\033[0;32m✓ $1\033[0m"; }
 warn() { echo -e "\033[1;33m⚠ $1\033[0m"; }
 
-# ==========================
-# CHECK GCS ACCESS
-# ==========================
 UPLOAD_ENABLED=true
 info "Checking access to $BUCKET ..."
 
@@ -29,9 +26,24 @@ else
     ok "Bucket access OK — upload enabled"
 fi
 
-# ==========================
-# Warmup (NO DATA)
-# ==========================
+upload() {
+    local file=$1
+    local scenario=$2
+
+    if [ "$UPLOAD_ENABLED" = false ]; then
+        warn "Upload skipped — file saved locally: $file"
+        return 0
+    fi
+
+    local remote_path="$BUCKET/${EXP}/${scenario}/"
+    info "Uploading $(basename "$file") to $remote_path"
+    if gsutil cp "$file" "$remote_path"; then
+        ok "Uploaded: $(basename "$file")"
+    else
+        warn "Upload failed — file kept locally"
+    fi
+}
+
 run_warmup() {
     info "Warmup test (no data recorded)"
     k6 run src/tests/warmup.test.js
@@ -39,100 +51,90 @@ run_warmup() {
     sleep 30
 }
 
-# ==========================
-# Smoke
-# ==========================
-run_smoke() {
-    local file="$RESULTS_DIR/${PREFIX}_smoke_${TIMESTAMP}.csv"
-    info "Smoke test"
-    k6 run -e SCENARIO=smoke src/tests/balanced.test.js \
-        --out csv="$file"
-    upload "$file"
-    ok "Smoke finished"
-}
-
-# ==========================
-# Balanced
-# ==========================
-run_balanced() {
+run_grpc() {
     local scenario=${1:-load}
-    local file="$RESULTS_DIR/${PREFIX}_balanced_${scenario}_${TIMESTAMP}.csv"
-    info "Balanced test: $scenario"
-    k6 run -e SCENARIO="$scenario" src/tests/balanced.test.js \
+    local file="$RESULTS_DIR/${EXP}_grpc_${scenario}_${TIMESTAMP}.csv"
+
+    info "Running gRPC test: $scenario"
+    k6 run -e SCENARIO="$scenario" src/tests/grpc.test.js \
         --out csv="$file"
-    upload "$file"
-    ok "Balanced $scenario finished"
+    upload "$file" "$scenario"
+    ok "gRPC $scenario finished"
 }
 
-# ==========================
-# Comparison
-# ==========================
-run_comparison() {
-    local file="$RESULTS_DIR/${PREFIX}_comparison_${TIMESTAMP}.csv"
-    info "Comparison test (gRPC vs REST)"
-    k6 run src/tests/comparison.test.js \
+run_rest() {
+    local scenario=${1:-load}
+    local file="$RESULTS_DIR/${EXP}_rest_${scenario}_${TIMESTAMP}.csv"
+
+    info "Running REST test: $scenario"
+    k6 run -e SCENARIO="$scenario" src/tests/rest.test.js \
         --out csv="$file"
-    upload "$file"
-    ok "Comparison finished"
+    upload "$file" "$scenario"
+    ok "REST $scenario finished"
 }
 
-# ==========================
-# Upload handler (SAFE)
-# ==========================
-upload() {
-    local file=$1
+run_scenario() {
+    local scenario=${1:-load}
 
-    if [ "$UPLOAD_ENABLED" = false ]; then
-        warn "Upload skipped — file saved locally: $file"
-        return 0
-    fi
+    info "=== Starting scenario: $scenario ==="
 
-    info "Uploading $(basename "$file") to $BUCKET"
-    if gsutil cp "$file" "$BUCKET/"; then
-        ok "Uploaded: $(basename "$file")"
-    else
-        warn "Upload failed — file kept locally"
-    fi
+    run_grpc "$scenario"
+    sleep 60
+
+    run_rest "$scenario"
+    sleep 60
+
+    ok "=== Scenario $scenario complete ==="
 }
 
-# ==========================
-# Full Suite
-# ==========================
 run_full_suite() {
     run_warmup
-    run_smoke
 
-    run_balanced load
-    sleep 30
-
-    run_balanced stress
-    sleep 30
-
-    run_comparison
+    run_scenario smoke
+    run_scenario load
+    run_scenario stress
+    run_scenario spike
+    run_scenario soak
 }
 
-# ==========================
-# Main
-# ==========================
 case "${1:-help}" in
-    smoke)      run_smoke ;;
-    balanced)   run_balanced "${2:-load}" ;;
-    comparison) run_warmup; run_comparison ;;
-    full-suite) run_full_suite ;;
+    grpc)
+        run_grpc "${2:-load}"
+        ;;
+    rest)
+        run_rest "${2:-load}"
+        ;;
+    scenario)
+        run_scenario "${2:-load}"
+        ;;
+    full-suite)
+        run_full_suite
+        ;;
     *)
         echo "Usage:"
-        echo "PREFIX=local ./run-tests.sh full-suite"
-        echo "PREFIX=server ./run-tests.sh comparison"
-        echo "PREFIX=simulate_worst_net ./run-tests.sh balanced stress"
+        echo "  EXP=percobaan-2 ./run-tests.sh grpc [smoke|load|stress|spike|soak]"
+        echo "  EXP=percobaan-2 ./run-tests.sh rest [smoke|load|stress|spike|soak]"
+        echo "  EXP=percobaan-2 ./run-tests.sh scenario [smoke|load|stress|spike|soak]"
+        echo "  EXP=percobaan-2 ./run-tests.sh full-suite"
+        echo ""
+        echo "Examples:"
+        echo "  EXP=baseline ./run-tests.sh scenario load"
+        echo "  EXP=p1 ./run-tests.sh full-suite"
+        echo "  EXP=poor-net ./run-tests.sh scenario stress"
+        echo ""
+        echo "GCS Structure:"
+        echo "  gs://benchmark-2026/percobaan-2/smoke/..."
+        echo "  gs://benchmark-2026/percobaan-2/load/..."
+        echo "  gs://benchmark-2026/p1/load/..."
         exit 1
         ;;
 esac
 
-ok "Experiment finished"
+ok "Experiment finished: $EXP"
 ok "Local results directory: $RESULTS_DIR"
 
 if [ "$UPLOAD_ENABLED" = true ]; then
-    ok "Cloud bucket: $BUCKET"
+    ok "Cloud bucket: $BUCKET/$EXP"
 else
     warn "Cloud upload disabled — local only"
 fi
