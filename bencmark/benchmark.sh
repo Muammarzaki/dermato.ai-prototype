@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 ### ========= GLOBAL CONFIG =========
 IFACE=${IFACE:-enp4}
 EXP_NAME=${EXP_NAME:-percobaan-1}
