@@ -25,6 +25,7 @@ touch "$LOGFILE"
 
 chown -R "$REAL_USER:$REAL_GROUP" "$RESULTS_DIR" "$LOG_DIR"
 
+# Helper Logging
 log()  { echo "[$(date '+%F %T')] $1" | tee -a "$LOGFILE"; }
 info() { echo -e "\033[0;34mℹ $1\033[0m" | tee -a "$LOGFILE"; }
 warn() { echo -e "\033[1;33m⚠ $1\033[0m" | tee -a "$LOGFILE"; }
@@ -32,7 +33,7 @@ error(){ echo -e "\033[0;31m✗ $1\033[0m" >&2 | tee -a "$LOGFILE"; }
 
 net_reset() {
   tc qdisc del dev "$IFACE" root 2>/dev/null || true
-  info "Network traffic control reset on $IFACE."
+  log "Network traffic control reset on $IFACE."
 }
 trap 'net_reset' INT TERM EXIT ERR
 
@@ -65,7 +66,6 @@ doctor() {
     fi
   done
 
-  # Diperbarui dengan -H
   if sudo -u "$REAL_USER" -H bash -c 'command -v k6' >/dev/null 2>&1; then
     echo "✓ Command 'k6' is installed for user $REAL_USER"
   else
@@ -97,6 +97,53 @@ net_apply() {
   esac
 }
 
+upload_file() {
+  local file=$1
+  local net=$2
+  local scenario=$3
+
+  if ! sudo -u "$REAL_USER" -H bash -c 'command -v gsutil' >/dev/null 2>&1; then
+    warn "Upload skipped: gsutil missing"
+    return 0
+  fi
+
+  info "Temporarily unthrottling network for fast upload..."
+  net_reset
+  sleep 2
+
+  info "Uploading $(basename "$file") to GCP..."
+
+  local max_retries=3
+  local attempt=1
+  local success=0
+
+  # Sistem Retry: Mengulang upload jika terputus/gagal
+  while [ $attempt -le $max_retries ]; do
+    set +e
+    sudo -u "$REAL_USER" -H gsutil cp "$file" "$BUCKET/$EXP_NAME/$net/$scenario/" >>"$LOGFILE" 2>&1
+    local upload_status=$?
+    set -e
+
+    if [ $upload_status -eq 0 ]; then
+      log "Upload successful."
+      success=1
+      break
+    else
+      warn "Upload failed (Attempt $attempt of $max_retries)."
+      sleep 2
+      ((attempt++))
+    fi
+  done
+
+  if [ $success -eq 0 ]; then
+    error "Upload permanently failed for $(basename "$file") after $max_retries attempts. File kept locally."
+  fi
+
+  info "Restoring network profile: [$net]"
+  net_apply "$net"
+  sleep 2
+}
+
 run_test() {
   local proto=$1
   local scenario=$2
@@ -112,49 +159,24 @@ run_test() {
 
   info "Starting k6: [$proto] | Scenario: [$scenario] | Network: [$net]"
 
-  # EXECUTION CORE: Menggunakan -H agar cache folder tepat sasaran,
-  # dan variabel GRPC/REST di-inject secara native ke k6
+  # EXECUTION CORE: Redirection log dihapus agar metrik k6 tampil mulus di Terminal
   set +e
   sudo -u "$REAL_USER" -H k6 run \
     -e SCENARIO="$scenario" \
     -e REST_ADDR="${REST_ADDR:-}" \
     -e GRPC_ADDR="${GRPC_ADDR:-}" \
-    "$test_file" --out csv="$out" >>"$LOGFILE" 2>&1
+    "$test_file" --out csv="$out"
   local exit_code=$?
   set -e
 
-  if [ $exit_code -eq 0 ] && [ -f "$out" ]; then
+  # Validasi file CSV, pastikan file benar-benar ada dan berisi data sebelum di-upload
+  if [ $exit_code -eq 0 ] && [ -s "$out" ]; then
     upload_file "$out" "$net" "$scenario"
     return 0
   else
-    error "Test failed for $proto $scenario on $net network (Exit code: $exit_code)"
-    sudo -u "$REAL_USER" -H rm -f "$out"
+    error "Test failed or interrupted for $proto $scenario on $net network (Exit code: $exit_code)"
+    sudo -u "$REAL_USER" -H rm -f "$out" # Hapus file CSV yang gagal/kosong
     return 1
-  fi
-}
-
-upload_file() {
-  local file=$1
-  local net=$2
-  local scenario=$3
-
-  if ! sudo -u "$REAL_USER" -H bash -c 'command -v gsutil' >/dev/null 2>&1; then
-    warn "Upload skipped: gsutil missing"
-    return 0
-  fi
-
-  info "Uploading $(basename "$file") to GCP..."
-
-  # EXECUTION CORE: gsutil sekarang menggunakan konfigurasi dan kredensial GCP user Anda
-  set +e
-  sudo -u "$REAL_USER" -H gsutil cp "$file" "$BUCKET/$EXP_NAME/$net/$scenario/" >>"$LOGFILE" 2>&1
-  local upload_status=$?
-  set -e
-
-  if [ $upload_status -ne 0 ]; then
-    error "Upload failed for $(basename "$file"). Check log for details."
-  else
-    log "Upload successful."
   fi
 }
 
@@ -174,6 +196,7 @@ full_suite() {
 
     for scenario in "${SCENARIOS[@]}"; do
       for proto in "${PROTOS[@]}"; do
+        # '|| true' memastikan script tetap lanjut ke skenario berikutnya meskipun tes ini gagal
         run_test "$proto" "$scenario" "$net" || true
       done
     done
