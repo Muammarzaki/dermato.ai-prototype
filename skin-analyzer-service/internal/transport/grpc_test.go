@@ -187,50 +187,100 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ContractValid() {
 }
 
 func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ContractValid_WithRealImage() {
-	ctx := context.Background()
-	stream, err := suite.client.AnalyzeSkin(ctx)
-	suite.Require().NoError(err)
-
-	imagePath := "../../../bencmark/test-images/sample.jpg"
-	imgBytes, err := os.ReadFile(imagePath)
-	suite.Require().NoError(err, "Failed to read image file. Make sure the image path is correct.")
-
-	validHash := sha256.Sum256(imgBytes)
-
-	suite.mockInference.On("GetTopKPredictions", mock.Anything, 1).Return([]service.PredictionResult{
-		{ClassIndex: 2, ClassName: "Eczema", Confidence: 0.98},
-	}, nil)
-	suite.mockInference.On("GetDescription", 2).Return("Skin inflammation.")
-	suite.mockInference.On("GetRecommendation", 2).Return("Use moisturizing cream.")
-
-	err = stream.Send(&citra.AnalyzeSkinRequest{
-		RequestPayload: &citra.AnalyzeSkinRequest_Info{
-			Info: &citra.ImageInfo{
-				UserId:       "tester_valid",
-				ImageType:    "jpg",
-				ClientSha256: validHash[:],
+	testCases := []struct {
+		name           string
+		imagePath      string
+		mockSetup      func()
+		expectedLabel  string
+		confidence     float32
+		description    string
+		recommendation string
+	}{
+		{
+			name:      "Small JPEG image (1.5MB)",
+			imagePath: "../../../bencmark/test-images/tahi_lalat_1.5mb.jpg",
+			mockSetup: func() {
+				suite.mockInference.On("GetTopKPredictions", mock.Anything, 1).Return([]service.PredictionResult{
+					{ClassIndex: 2, ClassName: "Eczema", Confidence: 0.98},
+				}, nil).Once()
+				suite.mockInference.On("GetDescription", 2).Return("Skin inflammation.").Once()
+				suite.mockInference.On("GetRecommendation", 2).Return("Use moisturizing cream.").Once()
 			},
+			expectedLabel:  "Eczema",
+			confidence:     0.98,
+			description:    "Skin inflammation.",
+			recommendation: "Use moisturizing cream.",
 		},
-	})
-	suite.Require().NoError(err)
+		{
+			name:      "Large JPEG image (18MB)",
+			imagePath: "../../../bencmark/test-images/tahi_lalat_18mb.jpg",
+			mockSetup: func() {
+				suite.mockInference.On("GetTopKPredictions", mock.Anything, 1).Return([]service.PredictionResult{
+					{ClassIndex: 1, ClassName: "Melanoma", Confidence: 0.85},
+				}, nil).Once()
+				suite.mockInference.On("GetDescription", 1).Return("Potentially cancerous skin growth.").Once()
+				suite.mockInference.On("GetRecommendation", 1).Return("Immediate medical consultation required.").Once()
+			},
+			expectedLabel:  "Melanoma",
+			confidence:     0.85,
+			description:    "Potentially cancerous skin growth.",
+			recommendation: "Immediate medical consultation required.",
+		},
+	}
 
-	err = stream.Send(&citra.AnalyzeSkinRequest{
-		RequestPayload: &citra.AnalyzeSkinRequest_Chunk{Chunk: imgBytes},
-	})
-	suite.Require().NoError(err)
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			ctx := context.Background()
+			stream, err := suite.client.AnalyzeSkin(ctx)
+			suite.Require().NoError(err)
 
-	res, err := stream.CloseAndRecv()
+			// Setup mocks for this test case
+			tc.mockSetup()
 
-	suite.Require().NoError(err)
-	suite.NotNil(res)
+			// Read the image file
+			imgBytes, err := os.ReadFile(tc.imagePath)
+			suite.Require().NoError(err, "Failed to read image file. Make sure the image path is correct.")
 
-	suite.NotEmpty(res.AnalysisId)
-	suite.Len(res.Results, 1)
+			validHash := sha256.Sum256(imgBytes)
 
-	suite.Equal("Eczema", res.Results[0].Label)
-	suite.Equal(float32(0.98), res.Results[0].Confidence)
-	suite.Equal("Skin inflammation.", res.Results[0].Description)
-	suite.Equal("Use moisturizing cream.", res.Results[0].Recommendation)
+			// Send metadata
+			err = stream.Send(&citra.AnalyzeSkinRequest{
+				RequestPayload: &citra.AnalyzeSkinRequest_Info{
+					Info: &citra.ImageInfo{
+						UserId:       "tester_valid",
+						ImageType:    "jpg",
+						ClientSha256: validHash[:],
+					},
+				},
+			})
+			suite.Require().NoError(err)
+
+			const chunkSize = 64 * 1024
+			for i := 0; i < len(imgBytes); i += chunkSize {
+				end := i + chunkSize
+				if end > len(imgBytes) {
+					end = len(imgBytes)
+				}
+				err = stream.Send(&citra.AnalyzeSkinRequest{
+					RequestPayload: &citra.AnalyzeSkinRequest_Chunk{Chunk: imgBytes[i:end]},
+				})
+			}
+			suite.Require().NoError(err)
+
+			res, err := stream.CloseAndRecv()
+
+			suite.Require().NoError(err)
+			suite.NotNil(res)
+			suite.NotEmpty(res.AnalysisId)
+			suite.Len(res.Results, 1)
+
+			// Verify prediction results
+			suite.Equal(tc.expectedLabel, res.Results[0].Label)
+			suite.Equal(tc.confidence, res.Results[0].Confidence)
+			suite.Equal(tc.description, res.Results[0].Description)
+			suite.Equal(tc.recommendation, res.Results[0].Recommendation)
+		})
+	}
 }
 
 func TestAnalyzeSkinSuite(t *testing.T) {
