@@ -77,7 +77,6 @@ export class GrpcClient {
                 'gRPC: has recommendation': (r) => typeof r?.results?.[0]?.recommendation === 'string',
                 'gRPC: has correct label': (r) => r.results[0].label === testCase.expected_label,
             });
-            console.log(res.results[0].label + testCase.filename)
 
             if (!ok) hasError = true;
         });
