@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"skin-analyzer-service/internal/event"
 	"skin-analyzer-service/internal/pb"
 	"skin-analyzer-service/internal/service"
@@ -15,6 +16,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// imageProcessingSemaphore limits concurrent image decodes across the transport package
+// This prevents OOM (Out of Memory) crashes during heavy benchmark loads.
+var imageProcessingSemaphore = make(chan struct{}, 4)
 
 type SkinAnalysisServer struct {
 	citra.UnimplementedSkinAnalysisServiceServer
@@ -29,6 +34,17 @@ func NewSkinAnalysisServer(inferenceService service.Inference, event chan event.
 	}
 }
 
+// emitEvent safely sends events without blocking the goroutine if the channel is full
+func (s *SkinAnalysisServer) emitEvent(evtStatus, body string) {
+	select {
+	case s.chronicEvent <- event.Event{Status: evtStatus, Body: body}:
+		// Event successfully sent
+	default:
+		// Channel is full, drop the event to prevent goroutine memory leaks
+		log.Printf("Warning: chronicEvent channel full, dropping gRPC event: %s", body)
+	}
+}
+
 func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_AnalyzeSkinServer) error {
 	var imageBuffer bytes.Buffer
 	var imageInfo *citra.ImageInfo
@@ -39,10 +55,7 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 			break
 		}
 		if err != nil {
-			s.chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Error receiving stream: " + err.Error(),
-			}
+			s.emitEvent("error", "Error receiving stream: "+err.Error())
 			return status.Errorf(codes.Internal, "failed to receive stream: %v", err)
 		}
 
@@ -55,20 +68,14 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 	}
 
 	if imageBuffer.Len() == 0 {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   "Empty image data received",
-		}
+		s.emitEvent("error", "Empty image data received")
 		return status.Error(codes.InvalidArgument, "empty image data")
 	}
 	finalBytes := imageBuffer.Bytes()
 	serverChecksum := sha256.Sum256(finalBytes)
 
 	if imageInfo == nil || len(imageInfo.ClientSha256) == 0 {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   "client checksum is required for data integrity validation",
-		}
+		s.emitEvent("error", "client checksum is required for data integrity validation")
 		return status.Error(
 			codes.InvalidArgument,
 			"client checksum is required for data integrity validation",
@@ -76,10 +83,7 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 	}
 
 	if len(imageInfo.ClientSha256) != sha256.Size {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   "invalid sha256 checksum length",
-		}
+		s.emitEvent("error", "invalid sha256 checksum length")
 		return status.Error(
 			codes.InvalidArgument,
 			"invalid sha256 checksum length",
@@ -92,28 +96,23 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 			imageInfo.ClientSha256,
 			serverChecksum,
 		)
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   message,
-		}
+		s.emitEvent("error", message)
 		return status.Error(codes.DataLoss, message)
 	}
 
+	// Wait for permission to process the image to prevent RAM spikes
+	imageProcessingSemaphore <- struct{}{}
 	preprocessedInput, err := service.Preprocessing(&finalBytes)
+	<-imageProcessingSemaphore // Release the token immediately after decoding
+
 	if err != nil {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   fmt.Sprintf("Failed to preprocess image: %v", err),
-		}
+		s.emitEvent("error", fmt.Sprintf("Failed to preprocess image: %v", err))
 		return status.Errorf(codes.InvalidArgument, "failed to preprocess image: %v", err)
 	}
 
 	predictionResults, err := s.inferenceService.GetTopKPredictions(preprocessedInput, 1)
 	if err != nil {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   fmt.Sprintf("Prediction failed: %v", err),
-		}
+		s.emitEvent("error", fmt.Sprintf("Prediction failed: %v", err))
 		return status.Errorf(codes.Internal, "failed to predict: %v", err)
 	}
 
@@ -135,16 +134,10 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 		Results:           analysisResults,
 	}
 
-	s.chronicEvent <- event.Event{
-		Status: "success",
-		Body:   fmt.Sprintf("Analysis completed successfully for ID: %s", response.AnalysisId),
-	}
+	s.emitEvent("success", fmt.Sprintf("Analysis completed successfully for ID: %s", response.AnalysisId))
 
 	if err := stream.SendAndClose(response); err != nil {
-		s.chronicEvent <- event.Event{
-			Status: "error",
-			Body:   fmt.Sprintf("Failed to send response: %v", err),
-		}
+		s.emitEvent("error", fmt.Sprintf("Failed to send response: %v", err))
 		return status.Errorf(codes.Internal, "failed to send response: %v", err)
 	}
 

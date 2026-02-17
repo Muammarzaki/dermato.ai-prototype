@@ -107,7 +107,6 @@ func initDB(config DBConfig) (*gorm.DB, error) {
 
 func startChronicEventProcessor(ctx context.Context, repository *data.ChronicRepository, events chan event.Event) {
 	go func() {
-		defer close(events)
 		for {
 			select {
 			case <-ctx.Done():
@@ -117,7 +116,7 @@ func startChronicEventProcessor(ctx context.Context, repository *data.ChronicRep
 				if !ok {
 					return
 				}
-				err := repository.Create(ctx, &data.Chronic{
+				err := repository.Create(context.Background(), &data.Chronic{
 					ID:        uuid.New(),
 					Body:      ev.Body,
 					Status:    ev.Status,

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"skin-analyzer-service/internal/event"
 	"skin-analyzer-service/internal/service"
@@ -37,14 +38,19 @@ type FileUploadResponse struct {
 	Results           []AnalysisResult `json:"results"`
 }
 
+func emitRestEvent(ch chan<- event.Event, evtStatus, body string) {
+	select {
+	case ch <- event.Event{Status: evtStatus, Body: body}:
+	default:
+		log.Printf("Warning: chronicEvent channel full, dropping REST event: %s", body)
+	}
+}
+
 func HandleFileUpload(inferenceService service.Inference, chronicEvent chan event.Event) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		file, err := c.FormFile("file")
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Failed to get file: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Failed to get file: "+err.Error())
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "Failed to get file",
 				"details": err.Error(),
@@ -52,10 +58,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 		}
 
 		if file.Size == 0 {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Empty file uploaded",
-			}
+			emitRestEvent(chronicEvent, "error", "Empty file uploaded")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Empty file uploaded",
 			})
@@ -64,10 +67,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 		metadata := make(map[string]string)
 		if metadataStr := c.FormValue("metadata"); metadataStr != "" {
 			if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
-				chronicEvent <- event.Event{
-					Status: "error",
-					Body:   "Invalid metadata format: " + err.Error(),
-				}
+				emitRestEvent(chronicEvent, "error", "Invalid metadata format: "+err.Error())
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 					"error":   "Invalid metadata format",
 					"details": err.Error(),
@@ -83,10 +83,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 		}
 
 		if uploadRequest.UserID == "" {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "User ID is required",
-			}
+			emitRestEvent(chronicEvent, "error", "User ID is required")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "User ID is required",
 			})
@@ -94,10 +91,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 
 		fileContent, err := file.Open()
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Failed to open file: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Failed to open file: "+err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Failed to open file",
 				"details": err.Error(),
@@ -109,10 +103,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 
 		buffer := make([]byte, file.Size)
 		if _, err := io.ReadFull(fileContent, buffer); err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Failed to read file: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Failed to read file: "+err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Failed to read file",
 				"details": err.Error(),
@@ -122,10 +113,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 		serverChecksum := sha256.Sum256(buffer)
 
 		if uploadRequest.ClientSha256 == "" {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "client checksum is required for data integrity validation",
-			}
+			emitRestEvent(chronicEvent, "error", "client checksum is required for data integrity validation")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "client checksum is required for data integrity validation",
 			})
@@ -133,10 +121,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 
 		clientChecksum, err := hex.DecodeString(uploadRequest.ClientSha256)
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "invalid checksum format: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "invalid checksum format: "+err.Error())
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "invalid checksum format",
 				"details": err.Error(),
@@ -144,10 +129,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 		}
 
 		if len(clientChecksum) != sha256.Size {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "invalid sha256 checksum length",
-			}
+			emitRestEvent(chronicEvent, "error", "invalid sha256 checksum length")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "invalid sha256 checksum length",
 			})
@@ -159,22 +141,21 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 				clientChecksum,
 				serverChecksum,
 			)
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   message,
-			}
+			emitRestEvent(chronicEvent, "error", message)
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   message,
 				"details": "Client and server checksums do not match",
 			})
 		}
 
+		// Wait for permission to process the image to prevent RAM spikes.
+		// Uses the shared package-level semaphore defined in grpc.go.
+		imageProcessingSemaphore <- struct{}{}
 		preprocessedInput, err := service.Preprocessing(&buffer)
+		<-imageProcessingSemaphore // Release the token immediately after decoding
+
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Failed to preprocess image: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Failed to preprocess image: "+err.Error())
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "Failed to preprocess image",
 				"details": err.Error(),
@@ -183,10 +164,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 
 		predictionResults, err := inferenceService.GetTopKPredictions(preprocessedInput, 1)
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Inference failed: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Inference failed: "+err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Inference failed",
 				"details": err.Error(),
@@ -213,20 +191,14 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 
 		responseJSON, err := json.Marshal(response)
 		if err != nil {
-			chronicEvent <- event.Event{
-				Status: "error",
-				Body:   "Failed to marshal response: " + err.Error(),
-			}
+			emitRestEvent(chronicEvent, "error", "Failed to marshal response: "+err.Error())
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Internal server error",
 				"details": err.Error(),
 			})
 		}
 
-		chronicEvent <- event.Event{
-			Status: "success",
-			Body:   string(responseJSON),
-		}
+		emitRestEvent(chronicEvent, "success", string(responseJSON))
 
 		return c.JSON(response)
 	}
