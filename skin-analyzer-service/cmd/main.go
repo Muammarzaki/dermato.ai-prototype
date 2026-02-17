@@ -157,6 +157,7 @@ func startServers(ctx context.Context, inferenceService *service.InferenceServic
 	} else {
 		app := fiber.New(fiber.Config{
 			DisableStartupMessage: true,
+			BodyLimit:             50 * 1024 * 1024,
 		})
 		app.Post("/analyze-skin", api2.HandleFileUpload(inferenceService, events))
 

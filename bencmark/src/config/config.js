@@ -8,6 +8,10 @@ const imgEczema = open('../../test-images/03EczemaExcoriated.jpg', 'b');
 const imgMelanoma = open('../../test-images/malignant-melanoma-17.jpg', 'b');
 const imgNevi = open('../../test-images/atypical-nevi-44.jpg', 'b');
 const imgUrticaria = open('../../test-images/dermagraphism-27.jpg', 'b');
+const imgTaiLalat1mb = open('../../test-images/tahi_lalat_1.5mb.jpg', 'b');
+const imgTaiLalat2mb = open('../../test-images/tahi_lalat_2mb.jpg', 'b');
+const imgTaiLalat22mb = open('../../test-images/tahi_lalat_22mb.jpg', 'b');
+const imgTaiLalat18mb = open('../../test-images/tahi_lalat_18mb.jpg', 'b');
 
 function createTestCase(filename, expectedLabel, buffer) {
     return {
@@ -20,14 +24,19 @@ function createTestCase(filename, expectedLabel, buffer) {
 }
 
 export const TEST_DATASET = [
-    createTestCase('acne-closed-comedo-27.jpg', 'Acne', imgAcne),
-    createTestCase('basal-cell-carcinoma-lid-3.jpg', 'Basal Cell Carcinoma', imgBCC),
-    createTestCase('benign-familial-chronic-pemphigus-11.jpg', 'Bullous Disease', imgBullous),
-    createTestCase('13_VI-chickenpox (22).jpg', 'Cacar Air', imgCacarAir),
-    createTestCase('03EczemaExcoriated.jpg', 'Eczema', imgEczema),
+    // createTestCase('acne-closed-comedo-27.jpg', 'Acne', imgAcne),
+    // createTestCase('basal-cell-carcinoma-lid-3.jpg', 'Basal Cell Carcinoma', imgBCC),
+    // createTestCase('benign-familial-chronic-pemphigus-11.jpg', 'Bullous Disease', imgBullous),
+    // createTestCase('13_VI-chickenpox (22).jpg', 'Cacar Air', imgCacarAir),
+    // createTestCase('03EczemaExcoriated.jpg', 'Eczema', imgEczema),
     createTestCase('malignant-melanoma-17.jpg', 'Skin Cancer', imgMelanoma),
     createTestCase('atypical-nevi-44.jpg', 'Skin Cancer', imgNevi),
-    createTestCase('dermagraphism-27.jpg', 'Bullous Disease', imgUrticaria)
+    createTestCase('dermagraphism-27.jpg', 'Bullous Disease', imgUrticaria),
+    createTestCase("tahi_lalat_1.5mb.jpg", "Eczema", imgTaiLalat1mb),
+    createTestCase("tahi_lalat_2mb.jpg", "Cacar Air", imgTaiLalat2mb),
+    createTestCase("tahi_lalat_2mb.jpg", "Cacar Air", imgTaiLalat2mb),
+    createTestCase("tahi_lalat_18mb.jpg", "Cacar Air", imgTaiLalat18mb),
+    createTestCase("tahi_lalat_22mb.jpg", "Eczema", imgTaiLalat22mb),
 ];
 
 export const CONFIG = {

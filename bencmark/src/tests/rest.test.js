@@ -6,6 +6,7 @@ import {randomItem} from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 const SCENARIO = __ENV.SCENARIO || 'load';
 
 export const options = {
+    noConnectionReuse: true,
     scenarios: {
         execution_benchmark: SCENARIOS[SCENARIO],
     },
@@ -23,9 +24,10 @@ export function setup() {
 
 export default function () {
     group('REST Skin Analysis', () => {
-        const randomTestCase = randomItem(TEST_DATASET);
+        const index = __ITER % TEST_DATASET.length;
+        const testCase = TEST_DATASET[index];
         restClient.analyzeSkin(
-            randomTestCase,
+            testCase,
             CONFIG.METADATA,
             CONFIG.TIMEOUT
         );

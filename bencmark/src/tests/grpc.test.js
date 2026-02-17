@@ -25,10 +25,10 @@ export default function () {
     grpcClient.connect(CONFIG.TIMEOUT);
 
     group('gRPC Skin Analysis', () => {
-        const randomTestCase = randomItem(TEST_DATASET);
-
+        const index = __ITER % TEST_DATASET.length;
+        const testCase = TEST_DATASET[index];
         grpcClient.analyzeSkin(
-            randomTestCase,
+            testCase,
             CONFIG.METADATA,
             CONFIG.CHUNK_SIZE,
             () => grpcClient.close()
