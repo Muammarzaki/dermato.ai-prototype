@@ -73,7 +73,7 @@ func (suite *AnalyzeSkinTestSuite) SetupTest() {
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
-	suite.Require().NoError(err) // Assertion standar testify
+	suite.Require().NoError(err)
 
 	suite.conn = conn
 	suite.client = citra.NewSkinAnalysisServiceClient(conn)
@@ -90,7 +90,6 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_MissingChecksum() {
 	stream, err := suite.client.AnalyzeSkin(ctx)
 	suite.Require().NoError(err)
 
-	// Mengirim info tanpa ClientSha256
 	err = stream.Send(&citra.AnalyzeSkinRequest{
 		RequestPayload: &citra.AnalyzeSkinRequest_Info{
 			Info: &citra.ImageInfo{
@@ -118,7 +117,7 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ChecksumMismatch() {
 	stream, err := suite.client.AnalyzeSkin(ctx)
 	suite.Require().NoError(err)
 
-	wrongHash := sha256.Sum256([]byte("data_sudah_berubah_di_jalan"))
+	wrongHash := sha256.Sum256([]byte("data_changed_during_transit"))
 
 	stream.Send(&citra.AnalyzeSkinRequest{
 		RequestPayload: &citra.AnalyzeSkinRequest_Info{
@@ -163,7 +162,7 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ContractValid() {
 	stream, err := suite.client.AnalyzeSkin(ctx)
 	suite.Require().NoError(err)
 
-	dummyData := []byte("ini_bukan_gambar_asli")
+	dummyData := []byte("this_is_not_real_image")
 	validHash := sha256.Sum256(dummyData)
 
 	stream.Send(&citra.AnalyzeSkinRequest{
@@ -194,22 +193,16 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ContractValid_WithRealImage()
 
 	imagePath := "../../../bencmark/test-images/sample.jpg"
 	imgBytes, err := os.ReadFile(imagePath)
-	suite.Require().NoError(err, "Gagal membaca file gambar. Pastikan path gambar benar.")
+	suite.Require().NoError(err, "Failed to read image file. Make sure the image path is correct.")
 
 	validHash := sha256.Sum256(imgBytes)
 
-	// 2. Siapkan Skenario Mock (SANGAT PENTING)
-	// Karena gambar valid, server akan meminta hasil prediksi ke mockInference.
-	// Kita perintahkan mock untuk merespons dengan prediksi "Eczema"
 	suite.mockInference.On("GetTopKPredictions", mock.Anything, 1).Return([]service.PredictionResult{
 		{ClassIndex: 2, ClassName: "Eczema", Confidence: 0.98},
 	}, nil)
+	suite.mockInference.On("GetDescription", 2).Return("Skin inflammation.")
+	suite.mockInference.On("GetRecommendation", 2).Return("Use moisturizing cream.")
 
-	// Server juga akan meminta deskripsi dan rekomendasi berdasarkan index
-	suite.mockInference.On("GetDescription", 2).Return("Peradangan pada kulit.")
-	suite.mockInference.On("GetRecommendation", 2).Return("Gunakan krim pelembap.")
-
-	// 3. Kirim Header (Info)
 	err = stream.Send(&citra.AnalyzeSkinRequest{
 		RequestPayload: &citra.AnalyzeSkinRequest_Info{
 			Info: &citra.ImageInfo{
@@ -221,31 +214,23 @@ func (suite *AnalyzeSkinTestSuite) TestAnalyzeSkin_ContractValid_WithRealImage()
 	})
 	suite.Require().NoError(err)
 
-	// 4. Kirim Payload (Chunk)
-	// Karena ukuran sampel gambar umumnya di bawah 4MB (batas default gRPC),
-	// kita bisa mengirimnya utuh dalam 1 chunk di pengujian ini.
 	err = stream.Send(&citra.AnalyzeSkinRequest{
 		RequestPayload: &citra.AnalyzeSkinRequest_Chunk{Chunk: imgBytes},
 	})
 	suite.Require().NoError(err)
 
-	// 5. Tutup aliran dan tunggu respons
 	res, err := stream.CloseAndRecv()
 
-	// 6. ASSERTION (Validasi Happy Path)
-	// Kali ini, kita mengharapkan TIDAK ADA error sama sekali
 	suite.Require().NoError(err)
 	suite.NotNil(res)
 
-	// Pastikan Server merespons dengan ID dan array hasil yang benar
 	suite.NotEmpty(res.AnalysisId)
 	suite.Len(res.Results, 1)
 
-	// Validasi apakah respons dari gRPC cocok dengan nilai dari Mock kita
 	suite.Equal("Eczema", res.Results[0].Label)
 	suite.Equal(float32(0.98), res.Results[0].Confidence)
-	suite.Equal("Peradangan pada kulit.", res.Results[0].Description)
-	suite.Equal("Gunakan krim pelembap.", res.Results[0].Recommendation)
+	suite.Equal("Skin inflammation.", res.Results[0].Description)
+	suite.Equal("Use moisturizing cream.", res.Results[0].Recommendation)
 }
 
 func TestAnalyzeSkinSuite(t *testing.T) {
