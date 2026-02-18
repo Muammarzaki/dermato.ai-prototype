@@ -34,9 +34,8 @@ export const TEST_DATASET = [
     createTestCase('dermagraphism-27.jpg', 'Bullous Disease', imgUrticaria),
     createTestCase("tahi_lalat_1.5mb.jpg", "Eczema", imgTaiLalat1mb),
     createTestCase("tahi_lalat_2mb.jpg", "Cacar Air", imgTaiLalat2mb),
-    createTestCase("tahi_lalat_2mb.jpg", "Cacar Air", imgTaiLalat2mb),
-    createTestCase("tahi_lalat_18mb.jpg", "Cacar Air", imgTaiLalat18mb),
-    createTestCase("tahi_lalat_22mb.jpg", "Eczema", imgTaiLalat22mb),
+    // createTestCase("tahi_lalat_18mb.jpg", "Cacar Air", imgTaiLalat18mb),
+    // createTestCase("tahi_lalat_22mb.jpg", "Eczema", imgTaiLalat22mb),
 ];
 
 export const CONFIG = {

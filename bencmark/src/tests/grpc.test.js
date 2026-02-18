@@ -35,7 +35,7 @@ export default function () {
         );
     });
 
-    sleep(1);
+    sleep(Math.random() * 2 + 1);
 }
 
 export function teardown(data) {
