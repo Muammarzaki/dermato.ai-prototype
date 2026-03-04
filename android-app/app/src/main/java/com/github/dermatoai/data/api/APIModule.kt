@@ -24,7 +24,7 @@ object APIModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            if (BuildConfig.DEBUG)
+            if (BuildConfig.BUILD_TYPE == "debug")
                 level = HttpLoggingInterceptor.Level.BODY
         }
 
@@ -58,7 +58,7 @@ object APIModule {
         ManagedChannelBuilder
             .forAddress(BuildConfig.GRPC_HOST, BuildConfig.GRPC_PORT)
             .also {
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.BUILD_TYPE == "debug") {
                     it.usePlaintext()
                 } else {
                     it.useTransportSecurity()

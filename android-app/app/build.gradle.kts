@@ -46,6 +46,7 @@ android {
             buildConfigField("int", "GRPC_PORT", "443")
         }
         debug {
+            isDebuggable = true
             isMinifyEnabled = false
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
@@ -122,7 +123,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.leakcanary.android)
+//    debugImplementation(libs.leakcanary.android)
 }
 
 protobuf {
