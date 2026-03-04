@@ -10,65 +10,63 @@ from pathlib import Path
 
 # ─── Addresses ───────────────────────────────────────────────────────────────
 GRPC_ADDR = os.environ.get("GRPC_ADDR", "127.0.0.1:8008")
-REST_ADDR  = os.environ.get("REST_ADDR", "http://127.0.0.1:8088")
+REST_ADDR = os.environ.get("REST_ADDR", "http://127.0.0.1:8088")
 
 # ─── Transfer ────────────────────────────────────────────────────────────────
 CHUNK_SIZE = 64 * 1024  # 64 KB
-TIMEOUT    = 30         # detik
+TIMEOUT = 30  # detik
 
 # ─── Metadata ────────────────────────────────────────────────────────────────
 METADATA = {
-    "user_id":    "user-locust-test",
+    "user_id": "user-locust-test",
     "image_type": "image/jpeg",
     "meta_tags": {
-        "source":      "locust-load-test",
+        "source": "locust-load-test",
         "environment": "testing",
     },
 }
 
 # ─── Scenarios ───────────────────────────────────────────────────────────────
-# Format tiap stage: (duration_detik, target_vus, spawn_rate)
 SCENARIOS = {
     "smoke": [
-        (60,  1, 1),
-        (10,  0, 1),
+        (60, 1, 1),
+        (10, 0, 1),
     ],
     "load": [
         (120, 10, 1),
         (300, 10, 0),
-        (120,  0, 1),
+        (120, 0, 1),
     ],
     "stress": [
         (120, 20, 1),
         (300, 20, 0),
         (120, 40, 1),
         (300, 40, 0),
-        (120,  0, 2),
+        (120, 0, 2),
     ],
     "spike": [
-        ( 60, 10, 1),
-        ( 30, 50, 5),
+        (60, 10, 1),
+        (30, 50, 5),
         (180, 50, 0),
-        ( 60, 10, 2),
-        ( 60,  0, 2),
+        (60, 10, 2),
+        (60, 0, 2),
     ],
     "soak": [
-        (  30, 15, 1),
+        (30, 15, 1),
         (1800, 15, 0),
-        (  30,  0, 2),
+        (30, 0, 2),
     ],
 }
 
 # ─── Test images ─────────────────────────────────────────────────────────────
-# Relatif dari /benchmark → naik satu level ke project root
 _IMAGE_DIR = Path(__file__).parents[2] / "test-images"
 
 _IMAGE_MANIFEST = [
     ("tahi_lalat_1.5mb.jpg", "Eczema"),
-    ("tahi_lalat_2mb.jpg",   "Cacar Air"),
+    ("tahi_lalat_2mb.jpg", "Cacar Air"),
     ("tahi_lalat_2.5mb.jpg", "Cacar Air"),
     ("tahi_lalat_3.7mb.jpg", "Cacar Air"),
-    ("tahi_lalat_4mb.jpg",   "Cacar Air"),
+    ("tahi_lalat_4mb.jpg", "Cacar Air"),
 ]
 
 
@@ -80,15 +78,14 @@ def _load(filename: str, expected_label: str) -> dict | None:
     data = path.read_bytes()
     digest = hashlib.sha256(data)
     return {
-        "filename":       filename,
+        "filename": filename,
         "expected_label": expected_label,
-        "data":           data,                          # raw bytes — tidak perlu b64 lagi
-        "hash_hex":       digest.hexdigest(),            # REST header
-        "hash_b64":       base64.b64encode(digest.digest()).decode(),  # gRPC metadata
+        "data": data,
+        "hash_hex": digest.hexdigest(),
+        "hash_bytes": digest.digest(),
     }
 
 
-# Di-load sekali saat worker start (ekuivalen open() di init stage k6)
 TEST_DATASET: list[dict] = [
     tc for tc in (_load(fn, lbl) for fn, lbl in _IMAGE_MANIFEST)
     if tc is not None

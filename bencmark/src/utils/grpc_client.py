@@ -1,12 +1,6 @@
 """
 src/utils/grpc_client.py
 Menggantikan src/utils/grpc.utils.js
-
-Channel gRPC dibuat sekali per Locust user dan di-reuse
-semua iterasi via HTTP/2 multiplexing — tidak ada reconnect
-tiap request seperti di k6 sebelumnya.
-
-Proto di-compile otomatis dari ../../../protobuf/skin_analyzer.proto
 """
 
 from __future__ import annotations
@@ -15,9 +9,7 @@ import sys
 import threading
 from pathlib import Path
 
-# ─── Gevent patch untuk grpc ──────────────────────────────────────────────────
-# Locust menggunakan gevent (greenlet). grpc standard memakai thread native
-# yang tidak kompatibel. Patch ini harus dipanggil SEBELUM import grpc apapun.
+# ─── Gevent patch — harus sebelum import grpc apapun ─────────────────────────
 from gevent import monkey
 monkey.patch_all()
 
@@ -25,10 +17,10 @@ import grpc.experimental.gevent as grpc_gevent
 grpc_gevent.init_gevent()
 # ─────────────────────────────────────────────────────────────────────────────
 
-_lock         = threading.Lock()
-_proto_ready  = False
-_stub_class   = None
-_pb2          = None
+_lock        = threading.Lock()
+_proto_ready = False
+_stub_class  = None
+_pb2         = None
 
 
 def _compile_proto() -> None:
@@ -41,10 +33,16 @@ def _compile_proto() -> None:
         if _proto_ready:
             return
 
-        proto_dir = Path(__file__).parents[3] / "protobuf"
-        out_dir   = Path(__file__).parent / "_pb2"
+        proto_dir  = Path(__file__).parents[3] / "protobuf"
+        out_dir    = Path(__file__).parent / "_pb2"
         out_dir.mkdir(exist_ok=True)
-        (out_dir / "__init__.py").touch()
+
+        # Tambahkan out_dir LANGSUNG ke sys.path (bukan parentnya).
+        # Ini supaya generated file bisa saling import dengan bare name:
+        #   skin_analyzer_pb2_grpc.py  →  import skin_analyzer_pb2  ✓
+        out_dir_str = str(out_dir)
+        if out_dir_str not in sys.path:
+            sys.path.insert(0, out_dir_str)
 
         proto_file = proto_dir / "skin_analyzer.proto"
         if not proto_file.exists():
@@ -66,14 +64,9 @@ def _compile_proto() -> None:
             if rc != 0:
                 raise RuntimeError("Kompilasi protoc gagal")
 
-        # Tambah parent ke sys.path agar import bekerja
-        parent = str(out_dir.parent)
-        if parent not in sys.path:
-            sys.path.insert(0, parent)
-
         import importlib
-        _pb2       = importlib.import_module("_pb2.skin_analyzer_pb2")
-        pb2_grpc   = importlib.import_module("_pb2.skin_analyzer_pb2_grpc")
+        _pb2        = importlib.import_module("skin_analyzer_pb2")
+        pb2_grpc    = importlib.import_module("skin_analyzer_pb2_grpc")
         _stub_class = pb2_grpc.SkinAnalysisServiceStub
         _proto_ready = True
 
@@ -81,7 +74,7 @@ def _compile_proto() -> None:
 def make_channel(address: str):
     """
     Buat insecure gRPC channel dengan HTTP/2 keepalive.
-    Panggil sekali di on_start(), bukan di tiap task.
+    Panggil sekali di on_start(), di-reuse semua iterasi.
     """
     import grpc
     _compile_proto()
@@ -89,11 +82,11 @@ def make_channel(address: str):
     return grpc.insecure_channel(
         address,
         options=[
-            ("grpc.max_send_message_length",        -1),
-            ("grpc.max_receive_message_length",      -1),
-            ("grpc.keepalive_time_ms",           20_000),
-            ("grpc.keepalive_timeout_ms",        10_000),
-            ("grpc.keepalive_permit_without_calls",   1),
+            ("grpc.max_send_message_length",            -1),
+            ("grpc.max_receive_message_length",          -1),
+            ("grpc.keepalive_time_ms",               20_000),
+            ("grpc.keepalive_timeout_ms",            10_000),
+            ("grpc.keepalive_permit_without_calls",       1),
         ],
     )
 

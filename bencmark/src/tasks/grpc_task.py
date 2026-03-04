@@ -33,7 +33,7 @@ def _request_iter(tc: dict) -> Iterator:
         info=pb2.ImageInfo(
             user_id       = METADATA["user_id"],
             image_type    = METADATA["image_type"],
-            client_sha256 = tc["hash_b64"],
+            client_sha256 = tc["hash_bytes"],
             metadata      = METADATA["meta_tags"],
         )
     )
