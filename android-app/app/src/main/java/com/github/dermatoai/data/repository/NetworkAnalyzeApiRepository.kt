@@ -2,6 +2,7 @@ package com.github.dermatoai.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.github.dermatoai.AnalyzeSkinRequest
 import com.github.dermatoai.AnalyzeSkinResponse
 import com.github.dermatoai.ImageInfo
@@ -85,6 +86,7 @@ class NetworkAnalyzeApiRepository @Inject constructor(
     private suspend fun fetchGrpcRaw(imageBytes: ByteArray): AnalyzeSkinResponse {
         val imageChecksum = imageBytes.sha256()
         val requestFlow = flow {
+            Log.d("NetworkAnalyzeApiRepository", "Sending request")
             emit(
                 AnalyzeSkinRequest.newBuilder()
                     .setInfo(
@@ -99,6 +101,7 @@ class NetworkAnalyzeApiRepository @Inject constructor(
                     )
                     .build()
             )
+            Log.d("NetworkAnalyzeApiRepository", "Sent metadata")
             val chunkSize = 64 * 1024
             var offset = 0
             while (offset < imageBytes.size) {
@@ -111,12 +114,18 @@ class NetworkAnalyzeApiRepository @Inject constructor(
                         )
                         .build()
                 )
+                Log.d("NetworkAnalyzeApiRepository", "Sent chunk $offset")
                 offset += length
             }
+            Log.d("NetworkAnalyzeApiRepository", "Sent all chunks")
         }
         return analyseStub
             .withDeadlineAfter(30, TimeUnit.SECONDS)
-            .analyzeSkin(requestFlow)
+            .analyzeSkin(requestFlow).let {
+                Log.d("NetworkAnalyzeApiRepository", "Received response")
+                Log.d("NetworkAnalyzeApiRepository", "Response: $it")
+                it
+            }
     }
 
     private fun mapRestToDomain(

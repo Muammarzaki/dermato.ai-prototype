@@ -1,8 +1,0 @@
-{
-  "name": "dermato.ai.k6",
-  "version": "1.0.0",
-  "type": "module",
-  "devDependencies": {
-    "@types/k6": "^1.4.0"
-  }
-}
