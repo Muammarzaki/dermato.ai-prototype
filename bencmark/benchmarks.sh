@@ -16,7 +16,7 @@ cd "$SCRIPT_DIR"
 # ─── Config ──────────────────────────────────────────────────────────────────
 IFACE=${IFACE:-enp4s0}
 EXP_NAME=${EXP_NAME:-percobaan-1}
-BUCKET=${BUCKET:-"gs://benchmark-2026"}
+BUCKET=${BUCKET:-"gs://benchmark-2026-v2"}
 RESULTS_DIR="$SCRIPT_DIR/results"
 LOG_DIR="$SCRIPT_DIR/logs"
 
