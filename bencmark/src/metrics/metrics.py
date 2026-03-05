@@ -3,46 +3,51 @@ src/metrics/metrics.py
 
 Custom metrics yang setara dengan k6 Trend/Counter/Rate/Gauge.
 Dikumpulkan per-request lalu ditulis ke CSV timestamped oleh CsvListener.
+
+Kolom CSV:
+  timestamp, protocol, scenario, network, metric, value, tags, error
 """
 
 from __future__ import annotations
 
 import csv
-import os
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 
 # ─── Raw metric event (satu baris CSV) ───────────────────────────────────────
 
 @dataclass
 class MetricEvent:
-    timestamp:    float   # unix epoch detik
-    protocol:     str     # grpc | rest
-    scenario:     str
-    network:      str
-    metric:       str     # nama metric
-    value:        float
-    tags:         str = ""
+    timestamp: float   # unix epoch detik
+    protocol:  str     # grpc | rest
+    scenario:  str
+    network:   str
+    metric:    str     # nama metric
+    value:     float
+    tags:      str = ""
+    error:     str = ""  # pesan error jika gagal, kosong jika sukses
 
 
 # ─── Thread-safe collector ────────────────────────────────────────────────────
 
 class MetricsCollector:
-    """
-    Kumpulkan metric events dari semua greenlet secara thread-safe.
-    CsvListener drain dan tulis ke file secara periodik.
-    """
-
     def __init__(self):
         self._lock   = threading.Lock()
         self._buffer: list[MetricEvent] = []
 
-    def record(self, protocol: str, scenario: str, network: str,
-               metric: str, value: float, tags: str = "") -> None:
+    def record(
+        self,
+        protocol: str,
+        scenario: str,
+        network:  str,
+        metric:   str,
+        value:    float,
+        tags:     str = "",
+        error:    str = "",
+    ) -> None:
         ev = MetricEvent(
             timestamp = time.time(),
             protocol  = protocol,
@@ -51,6 +56,7 @@ class MetricsCollector:
             metric    = metric,
             value     = value,
             tags      = tags,
+            error     = error,
         )
         with self._lock:
             self._buffer.append(ev)
@@ -69,14 +75,20 @@ collector = MetricsCollector()
 
 class CsvListener:
     """
-    Locust event listener yang drain collector dan tulis ke CSV
-    setiap interval detik, mirip format --out csv= di k6.
-
-    Kolom CSV:
-      timestamp, protocol, scenario, network, metric, value, tags
+    Drain collector dan tulis ke CSV setiap interval detik.
+    Setara dengan --out csv= di k6.
     """
 
-    _HEADER = ["timestamp", "protocol", "scenario", "network", "metric", "value", "tags"]
+    _HEADER = [
+        "timestamp",
+        "protocol",
+        "scenario",
+        "network",
+        "metric",
+        "value",
+        "tags",
+        "error",
+    ]
 
     def __init__(self, out_path: str, interval: float = 2.0):
         self.path     = Path(out_path)
@@ -117,5 +129,6 @@ class CsvListener:
                 ev.metric,
                 f"{ev.value:.4f}",
                 ev.tags,
+                ev.error,
             ])
         self._file.flush()

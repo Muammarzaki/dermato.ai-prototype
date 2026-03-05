@@ -1,19 +1,5 @@
 """
 src/tasks/rest_task.py
-
-Metrics yang dikumpulkan (setara k6):
-  rest_req_duration       — total waktu request (ms)
-  rest_req_waiting        — TTFB / server processing (ms)
-  rest_req_sending        — waktu kirim request body (ms)
-  rest_req_receiving      — waktu terima response (ms)
-  rest_req_connecting     — waktu TCP connect (ms)
-  rest_req_blocked        — waktu antri sebelum connect (ms)
-  rest_req_tls_handshaking— TLS handshake (ms), 0 jika plaintext
-  rest_data_sent          — bytes dikirim
-  rest_data_received      — bytes diterima
-  rest_req_failed         — counter gagal
-  rest_req_success_rate   — 1.0 sukses / 0.0 gagal
-  rest_active_requests    — requests aktif saat ini
 """
 
 from __future__ import annotations
@@ -35,8 +21,8 @@ SCENARIO = os.environ.get("SCENARIO", "load")
 NETWORK  = os.environ.get("NETWORK",  "normal")
 
 
-def _rec(metric: str, value: float) -> None:
-    collector.record("rest", SCENARIO, NETWORK, metric, value)
+def _rec(metric: str, value: float, error: str = "") -> None:
+    collector.record("rest", SCENARIO, NETWORK, metric, value, error=error)
 
 
 def analyze_skin(client) -> None:
@@ -62,6 +48,8 @@ def analyze_skin(client) -> None:
         len(json.dumps(METADATA["meta_tags"]))
     )
 
+    error_msg = ""
+
     try:
         with client.post(
             "/analyze-skin",
@@ -72,9 +60,6 @@ def analyze_skin(client) -> None:
             catch_response=True,
         ) as res:
 
-            # ── Timings dari requests library ─────────────────────────────────
-            # requests tidak expose connect/send/wait secara terpisah,
-            # tapi kita bisa ambil dari elapsed + response headers timing
             t   = getattr(res, "elapsed", None)
             dur = t.total_seconds() * 1000 if t else 0
 
@@ -82,45 +67,57 @@ def analyze_skin(client) -> None:
             _rec("rest_data_sent",     request_size)
             _rec("rest_data_received", len(res.content) if res.content else 0)
 
-            # Locust HttpSession expose timings via response object
             raw = getattr(res, "_locust_request_meta", {})
             if raw:
-                _rec("rest_req_blocked",         raw.get("blocked",          0) or 0)
-                _rec("rest_req_connecting",       raw.get("connecting",       0) or 0)
-                _rec("rest_req_tls_handshaking",  raw.get("tls_handshaking",  0) or 0)
-                _rec("rest_req_sending",          raw.get("sending",          0) or 0)
-                _rec("rest_req_waiting",          raw.get("waiting",          0) or 0)
-                _rec("rest_req_receiving",        raw.get("receiving",        0) or 0)
+                _rec("rest_req_blocked",        raw.get("blocked",         0) or 0)
+                _rec("rest_req_connecting",      raw.get("connecting",      0) or 0)
+                _rec("rest_req_tls_handshaking", raw.get("tls_handshaking", 0) or 0)
+                _rec("rest_req_sending",         raw.get("sending",         0) or 0)
+                _rec("rest_req_waiting",         raw.get("waiting",         0) or 0)
+                _rec("rest_req_receiving",       raw.get("receiving",       0) or 0)
             else:
-                # Fallback: estimasi dari elapsed saja
                 _rec("rest_req_waiting",  dur * 0.8)
                 _rec("rest_req_receiving",dur * 0.2)
 
-            # ── Status ────────────────────────────────────────────────────────
+            # ── Status HTTP ───────────────────────────────────────────────────
             if res.status_code < 200 or res.status_code >= 300:
-                _rec("rest_req_failed",       1)
-                _rec("rest_req_success_rate", 0)
-                res.failure(f"HTTP {res.status_code}: {res.text[:200]}")
+                error_msg = f"HTTP {res.status_code}: {res.text[:300]}"
+                _rec("rest_req_failed",       1, error=error_msg)
+                _rec("rest_req_success_rate", 0, error=error_msg)
+                _rec("iterations",            1, error=error_msg)
+                res.failure(error_msg)
                 return
 
             # ── Parse body ────────────────────────────────────────────────────
             try:
                 body = res.json()
             except Exception as e:
-                _rec("rest_req_failed",       1)
-                _rec("rest_req_success_rate", 0)
-                res.failure(f"JSON parse error: {e}")
+                error_msg = f"JSON parse error: {e}"
+                _rec("rest_req_failed",       1, error=error_msg)
+                _rec("rest_req_success_rate", 0, error=error_msg)
+                _rec("iterations",            1, error=error_msg)
+                res.failure(error_msg)
                 return
 
-            err = _assert(body, tc)
-            if err:
-                _rec("rest_req_failed",       1)
-                _rec("rest_req_success_rate", 0)
-                res.failure(err)
+            # ── Assertions ────────────────────────────────────────────────────
+            assertion_err = _assert(body, tc)
+            if assertion_err:
+                error_msg = assertion_err
+                _rec("rest_req_failed",       1, error=error_msg)
+                _rec("rest_req_success_rate", 0, error=error_msg)
+                _rec("iterations",            1, error=error_msg)
+                res.failure(error_msg)
             else:
                 _rec("rest_req_failed",       0)
                 _rec("rest_req_success_rate", 1)
+                _rec("iterations",            1)
                 res.success()
+
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        _rec("rest_req_failed",       1, error=error_msg)
+        _rec("rest_req_success_rate", 0, error=error_msg)
+        _rec("iterations",            1, error=error_msg)
 
     finally:
         with _active_lock:
