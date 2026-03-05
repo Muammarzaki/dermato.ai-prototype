@@ -189,16 +189,7 @@ func HandleFileUpload(inferenceService service.Inference, chronicEvent chan even
 			Results:           analysisResults,
 		}
 
-		responseJSON, err := json.Marshal(response)
-		if err != nil {
-			emitRestEvent(chronicEvent, "error", "Failed to marshal response: "+err.Error())
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":   "Internal server error",
-				"details": err.Error(),
-			})
-		}
-
-		emitRestEvent(chronicEvent, "success", string(responseJSON))
+		emitRestEvent(chronicEvent, "success", fmt.Sprintf("Analysis completed successfully for ID: %s", response.AnalysisID))
 
 		return c.JSON(response)
 	}

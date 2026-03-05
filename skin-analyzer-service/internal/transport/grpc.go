@@ -9,6 +9,7 @@ import (
 	"skin-analyzer-service/internal/event"
 	"skin-analyzer-service/internal/pb"
 	"skin-analyzer-service/internal/service"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -62,6 +63,11 @@ func (s *SkinAnalysisServer) AnalyzeSkin(stream citra.SkinAnalysisService_Analyz
 		switch payload := req.RequestPayload.(type) {
 		case *citra.AnalyzeSkinRequest_Info:
 			imageInfo = payload.Info
+			if sizeStr, ok := imageInfo.Metadata["file_size"]; ok {
+				if size, err := strconv.ParseInt(sizeStr, 10, 64); err == nil {
+					imageBuffer.Grow(int(size))
+				}
+			}
 		case *citra.AnalyzeSkinRequest_Chunk:
 			imageBuffer.Write(payload.Chunk)
 		}
