@@ -17,15 +17,16 @@ CHUNK_SIZE = 64 * 1024  # 64 KB
 
 # Timeout disesuaikan per kondisi jaringan.
 # worst/3g: gambar 4MB × 300ms delay per chunk = mudah >30 detik hanya untuk kirim.
-_NETWORK = os.environ.get("NETWORK", "normal")
-_TIMEOUT_MAP = {
-    "normal": 30,
-    "4g":     45,
-    "poor":   60,
-    "3g":     90,
-    "worst":  120,
-}
-TIMEOUT = _TIMEOUT_MAP.get(_NETWORK, 60)
+# _NETWORK = os.environ.get("NETWORK", "normal")
+# _TIMEOUT_MAP = {
+#     "normal": 30,
+#     "4g":     45,
+#     "poor":   60,
+#     "3g":     90,
+#     "worst":  120,
+# }
+# TIMEOUT = _TIMEOUT_MAP.get(_NETWORK, 60)
+TIMEOUT = 120
 
 # ─── Metadata ────────────────────────────────────────────────────────────────
 METADATA = {
