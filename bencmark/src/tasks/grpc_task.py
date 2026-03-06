@@ -100,8 +100,15 @@ def analyze_skin(stub, environment) -> None:
             _rec("iterations",            1)
 
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        exc       = e
+        import grpc as _grpc
+        # DEADLINE_EXCEEDED dan UNAVAILABLE adalah error jaringan yang wajar
+        # di kondisi worst/3g — catat sebagai failure biasa, jangan crash worker
+        code = getattr(e, "code", lambda: None)()
+        if code in (_grpc.StatusCode.DEADLINE_EXCEEDED, _grpc.StatusCode.UNAVAILABLE):
+            error_msg = f"TIMEOUT({NETWORK}): {code.name} setelah {TIMEOUT}s"
+        else:
+            error_msg = f"{type(e).__name__}: {e}"
+        exc        = e
         elapsed_ms = (time.perf_counter() - req_start) * 1000
         _rec("grpc_req_duration",    elapsed_ms, error=error_msg)
         _rec("grpc_req_failed",      1,          error=error_msg)

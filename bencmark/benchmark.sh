@@ -176,6 +176,7 @@ run_test() {
       -f "$SCRIPT_DIR/locustfile.py" "$user_class" \
       --headless \
       --csv="$csv_prefix" \
+      --exit-code-on-error 0 \
       >>"$LOGFILE" 2>&1
   local rc=$?
   set -e
