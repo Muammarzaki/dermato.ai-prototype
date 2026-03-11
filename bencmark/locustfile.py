@@ -22,7 +22,7 @@ from locust.runners import WorkerRunner, MasterRunner
 from src.config.config import GRPC_ADDR, REST_ADDR, SCENARIOS
 from src.tasks.rest_task  import analyze_skin as rest_analyze
 from src.tasks.grpc_task  import analyze_skin as grpc_analyze
-from src.utils.grpc_client import make_channel, make_stub
+from src.utils.grpc_client import get_shared_channel, make_stub
 from src.metrics.metrics   import CsvListener
 
 # ─── Env ─────────────────────────────────────────────────────────────────────
@@ -68,12 +68,10 @@ class GrpcUser(User):
     wait_time = between(1, 3)
 
     def on_start(self):
-        self._channel = make_channel(GRPC_ADDR)
-        self._stub    = make_stub(self._channel)
-
-    def on_stop(self):
-        if hasattr(self, "_channel"):
-            self._channel.close()
+        # Gunakan shared channel — tidak buat channel baru per VU.
+        # Semua GrpcUser berbagi 1 channel dengan N concurrent HTTP/2 stream.
+        # Channel TIDAK di-close di on_stop() karena milik shared registry.
+        self._stub = make_stub(get_shared_channel(GRPC_ADDR))
 
     @task
     def skin_analysis(self):
