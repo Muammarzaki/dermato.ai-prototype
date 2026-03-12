@@ -89,15 +89,26 @@ def _request_iter(tc: dict, state: dict) -> Iterator:
 
     data   = tc["data"]
     offset = 0
-    state["send_start"]  = time.perf_counter()
-    state["chunk_count"] = 0
+    state["send_start"]       = time.perf_counter()
+    state["chunk_count"]      = 0
+    state["chunk_times_ms"]   = []  # waktu per chunk (ms)
+    state["chunk_bytes_list"] = []  # ukuran aktual per chunk (bytes)
 
     while offset < len(data):
-        end   = min(offset + chunk_size, len(data))
-        chunk = pb2.AnalyzeSkinRequest(chunk=data[offset:end])
+        end        = min(offset + chunk_size, len(data))
+        chunk_data = data[offset:end]
+        chunk      = pb2.AnalyzeSkinRequest(chunk=chunk_data)
+
+        t_chunk_start = time.perf_counter()
         state["bytes_sent"]  += end - offset
         state["chunk_count"] += 1
-        yield chunk
+        yield chunk                         # gRPC kirim chunk di sini
+        t_chunk_end = time.perf_counter()   # kontrol kembali = chunk ter-ack
+
+        chunk_ms = (t_chunk_end - t_chunk_start) * 1000
+        state["chunk_times_ms"].append(chunk_ms)
+        state["chunk_bytes_list"].append(end - offset)
+
         offset = end
 
     state["send_end"] = time.perf_counter()
@@ -108,11 +119,13 @@ def analyze_skin(stub, environment) -> None:
 
     tc    = next(_cycle)
     state = {
-        "bytes_sent":  0,
-        "send_start":  0.0,
-        "send_end":    0.0,
-        "chunk_size":  0,
-        "chunk_count": 0,
+        "bytes_sent":       0,
+        "send_start":       0.0,
+        "send_end":         0.0,
+        "chunk_size":       0,
+        "chunk_count":      0,
+        "chunk_times_ms":   [],
+        "chunk_bytes_list": [],
     }
 
     with _active_lock:
@@ -152,6 +165,23 @@ def analyze_skin(stub, environment) -> None:
         _rec("grpc_chunk_count",   state["chunk_count"])
         _rec("grpc_chunk_size_kb", state["chunk_size"] / 1024)
 
+        # ── Per-chunk timing stats ────────────────────────────────────────────
+        # Berguna untuk analisis: apakah bottleneck di chunk awal atau akhir?
+        # Apakah jaringan buruk menyebabkan chunk tertentu jauh lebih lambat?
+        chunk_times = state.get("chunk_times_ms", [])
+        if chunk_times:
+            _rec("grpc_chunk_time_avg_ms", sum(chunk_times) / len(chunk_times))
+            _rec("grpc_chunk_time_min_ms", min(chunk_times))
+            _rec("grpc_chunk_time_max_ms", max(chunk_times))
+            # Selisih max-min: indikator jitter/variasi antar chunk
+            # Nilai tinggi = ada chunk yang jauh lebih lambat (retransmit, loss)
+            _rec("grpc_chunk_time_jitter_ms", max(chunk_times) - min(chunk_times))
+        else:
+            _rec("grpc_chunk_time_avg_ms",    0.0)
+            _rec("grpc_chunk_time_min_ms",    0.0)
+            _rec("grpc_chunk_time_max_ms",    0.0)
+            _rec("grpc_chunk_time_jitter_ms", 0.0)
+
         assertion_err = _assert(res, tc)
         if assertion_err:
             error_msg = assertion_err
@@ -182,11 +212,15 @@ def analyze_skin(stub, environment) -> None:
         _rec("grpc_req_receiving",   0,          error=error_msg)
         _rec("grpc_data_sent",       0,          error=error_msg)
         _rec("grpc_data_received",   0,          error=error_msg)
-        _rec("grpc_chunk_count",     0,          error=error_msg)
-        _rec("grpc_chunk_size_kb",   0,          error=error_msg)
-        _rec("grpc_req_failed",      1,          error=error_msg)
-        _rec("grpc_req_success_rate",0,          error=error_msg)
-        _rec("iterations",           1,          error=error_msg)
+        _rec("grpc_chunk_count",          0,          error=error_msg)
+        _rec("grpc_chunk_size_kb",        0,          error=error_msg)
+        _rec("grpc_chunk_time_avg_ms",    0,          error=error_msg)
+        _rec("grpc_chunk_time_min_ms",    0,          error=error_msg)
+        _rec("grpc_chunk_time_max_ms",    0,          error=error_msg)
+        _rec("grpc_chunk_time_jitter_ms", 0,          error=error_msg)
+        _rec("grpc_req_failed",           1,          error=error_msg)
+        _rec("grpc_req_success_rate",     0,          error=error_msg)
+        _rec("iterations",                1,          error=error_msg)
 
     finally:
         with _active_lock:
