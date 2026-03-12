@@ -26,7 +26,7 @@ CHUNK_SIZE = 64 * 1024  # 64 KB
 #     "worst":  120,
 # }
 # TIMEOUT = _TIMEOUT_MAP.get(_NETWORK, 60)
-TIMEOUT = 120
+TIMEOUT = 600
 
 # ─── Metadata ────────────────────────────────────────────────────────────────
 METADATA = {
