@@ -173,10 +173,20 @@ def analyze_skin(stub, environment) -> None:
             error_msg = f"{type(e).__name__}: {e}"
         exc        = e
         elapsed_ms = (time.perf_counter() - req_start) * 1000
-        _rec("grpc_req_duration",     elapsed_ms, error=error_msg)
-        _rec("grpc_req_failed",       1,           error=error_msg)
-        _rec("grpc_req_success_rate", 0,           error=error_msg)
-        _rec("iterations",            1,           error=error_msg)
+        # ERROR path — konsisten dengan REST error path:
+        # sending/receiving = 0 (tidak sempat/selesai transfer)
+        # waiting = elapsed (semua waktu dianggap menunggu/timeout)
+        _rec("grpc_req_duration",    elapsed_ms, error=error_msg)
+        _rec("grpc_req_sending",     0,          error=error_msg)
+        _rec("grpc_req_waiting",     elapsed_ms, error=error_msg)
+        _rec("grpc_req_receiving",   0,          error=error_msg)
+        _rec("grpc_data_sent",       0,          error=error_msg)
+        _rec("grpc_data_received",   0,          error=error_msg)
+        _rec("grpc_chunk_count",     0,          error=error_msg)
+        _rec("grpc_chunk_size_kb",   0,          error=error_msg)
+        _rec("grpc_req_failed",      1,          error=error_msg)
+        _rec("grpc_req_success_rate",0,          error=error_msg)
+        _rec("iterations",           1,          error=error_msg)
 
     finally:
         with _active_lock:
