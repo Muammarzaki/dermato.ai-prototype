@@ -133,42 +133,42 @@ def analyze_skin(client) -> None:
             receiving_ms = max(final_duration * receiving_ratio,  5.0)
             waiting_ms   = max(final_duration - sending_ms - receiving_ms, 0.0)
 
-            # ── Record metrics ────────────────────────────────────────────────
+            # ── Record timing & data metrics (selalu, apapun hasilnya) ──────────
             _rec("rest_req_duration",  final_duration)
             _rec("rest_req_sending",   sending_ms)
-            _rec("rest_req_waiting",   waiting_ms)   # ← equivalent grpc_req_waiting
+            _rec("rest_req_waiting",   waiting_ms)
             _rec("rest_req_receiving", receiving_ms)
             _rec("rest_data_sent",     request_size)
             _rec("rest_data_received", response_size)
 
-            # ── Status HTTP ───────────────────────────────────────────────────
+            # ── Tentukan sukses/gagal — definisi identik dengan gRPC ─────────
+            #
+            # gRPC sukses = response diterima tanpa exception + assertion lulus
+            # REST sukses = response diterima tanpa exception + assertion lulus
+            #
+            # HTTP status non-2xx dan JSON parse error diperlakukan sebagai
+            # assertion failure (bukan exception), sama seperti gRPC yang
+            # menerima response tapi field-nya salah.
+
+            # Kumpulkan semua failure dalam satu tempat
+            failure_reason = ""
+
             if res.status_code < 200 or res.status_code >= 300:
-                error_msg = f"HTTP {res.status_code}: {res.text[:300]}"
-                _rec("rest_req_failed",       1, error=error_msg)
-                _rec("rest_req_success_rate", 0, error=error_msg)
-                _rec("iterations",            1, error=error_msg)
-                res.failure(error_msg)
-                return
+                failure_reason = f"HTTP {res.status_code}: {res.text[:200]}"
+            else:
+                try:
+                    body = res.json()
+                    assertion_err = _assert(body, tc)
+                    if assertion_err:
+                        failure_reason = assertion_err
+                except Exception as e:
+                    failure_reason = f"JSON parse error: {e}"
 
-            # ── Parse body ────────────────────────────────────────────────────
-            try:
-                body = res.json()
-            except Exception as e:
-                error_msg = f"JSON parse error: {e}"
-                _rec("rest_req_failed",       1, error=error_msg)
-                _rec("rest_req_success_rate", 0, error=error_msg)
-                _rec("iterations",            1, error=error_msg)
-                res.failure(error_msg)
-                return
-
-            # ── Assertions ────────────────────────────────────────────────────
-            assertion_err = _assert(body, tc)
-            if assertion_err:
-                error_msg = assertion_err
-                _rec("rest_req_failed",       1, error=error_msg)
-                _rec("rest_req_success_rate", 0, error=error_msg)
-                _rec("iterations",            1, error=error_msg)
-                res.failure(error_msg)
+            if failure_reason:
+                _rec("rest_req_failed",       1, error=failure_reason)
+                _rec("rest_req_success_rate", 0, error=failure_reason)
+                _rec("iterations",            1, error=failure_reason)
+                res.failure(failure_reason)
             else:
                 _rec("rest_req_failed",       0)
                 _rec("rest_req_success_rate", 1)
