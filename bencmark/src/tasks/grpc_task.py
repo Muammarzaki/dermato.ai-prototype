@@ -1,5 +1,22 @@
 """
 src/tasks/grpc_task.py
+
+Fase timing (identik dengan rest_task.py):
+
+  req_start
+     │
+     ├─── [sending]   → stream semua chunk ke server
+     │                   ≈ rest: upload multipart selesai
+     │
+     ├─── [waiting]   → server processing (selesai kirim → response diterima)
+     │                   ≈ rest: TTFB (send_end → resp_start)
+     │
+     ├─── [receiving] → deserialize response protobuf
+     │                   ≈ rest: baca body response
+     │
+  req_end
+     │
+     └─── req_duration = req_end - req_start  (identik dengan REST)
 """
 
 from __future__ import annotations
@@ -26,27 +43,6 @@ def _rec(metric: str, value: float, error: str = "") -> None:
 
 
 # ─── Dynamic chunk size ───────────────────────────────────────────────────────
-#
-# Strategi: chunk size ditentukan oleh DUA faktor — ukuran file + kondisi jaringan.
-#
-# Ukuran file menentukan batas atas chunk:
-#   ≤1MB  → max 256KB  (sedikit chunk, file kecil aman)
-#   ≤2MB  → max 512KB
-#   ≤3MB  → max 768KB
-#   >3MB  → max 1024KB (1MB)
-#
-# Kondisi jaringan men-scale down chunk size:
-#   normal/4g → 100% (pakai max)
-#   poor      → 75%  (sedikit lebih kecil, toleransi loss 1%)
-#   3g        → 50%  (bandwidth 384kbit, chunk besar membuang bandwidth kalau loss)
-#   worst     → 40%  (loss 3%, chunk kecil agar retransmit tidak mahal)
-#
-# Kenapa ini lebih baik dari flat 64KB:
-#   - 4MB di normal  : 64 chunk → 4 chunk (16x lebih sedikit round-trip)
-#   - 4MB di worst   : 64 chunk → 10 chunk (toleran loss tapi tetap jauh lebih baik)
-#   - REST tidak bisa streaming, jadi kirim sekaligus — gRPC dengan chunk besar
-#     mendekati efisiensi REST tapi tetap bisa mulai diproses lebih awal (streaming)
-
 _NETWORK_SCALE = {
     "normal": 1.00,
     "4g":     1.00,
@@ -56,10 +52,8 @@ _NETWORK_SCALE = {
 }
 
 def _get_chunk_size(file_size_bytes: int) -> int:
-    """Hitung chunk size optimal berdasarkan ukuran file dan kondisi jaringan."""
     size_mb = file_size_bytes / (1024 * 1024)
 
-    # Batas atas berdasarkan ukuran file
     if size_mb <= 1.0:
         base_kb = 256
     elif size_mb <= 2.0:
@@ -69,18 +63,15 @@ def _get_chunk_size(file_size_bytes: int) -> int:
     else:
         base_kb = 1024
 
-    # Scale down berdasarkan network
-    scale  = _NETWORK_SCALE.get(NETWORK, 0.75)
-    final  = int(base_kb * scale) * 1024  # konversi ke bytes
-
-    # Floor: minimal 64KB supaya tidak terlalu banyak chunk di kondisi terburuk
+    scale = _NETWORK_SCALE.get(NETWORK, 0.75)
+    final = int(base_kb * scale) * 1024
     return max(final, 64 * 1024)
 
 
 def _request_iter(tc: dict, state: dict) -> Iterator:
     pb2        = get_pb2()
     chunk_size = _get_chunk_size(len(tc["data"]))
-    state["chunk_size"] = chunk_size  # untuk logging
+    state["chunk_size"] = chunk_size
 
     meta_msg = pb2.AnalyzeSkinRequest(
         info=pb2.ImageInfo(
@@ -98,7 +89,7 @@ def _request_iter(tc: dict, state: dict) -> Iterator:
 
     data   = tc["data"]
     offset = 0
-    state["send_start"] = time.perf_counter()
+    state["send_start"]  = time.perf_counter()
     state["chunk_count"] = 0
 
     while offset < len(data):
@@ -135,22 +126,31 @@ def analyze_skin(stub, environment) -> None:
     try:
         res = stub.AnalyzeSkin(_request_iter(tc, state), timeout=TIMEOUT)
 
-        resp_time  = time.perf_counter()
-        resp_bytes = len(res.SerializeToString()) if res else 0
+        # Setelah response diterima dari network
+        resp_received = time.perf_counter()
 
-        req_duration = (resp_time - req_start)                       * 1000
-        sending_time = (state["send_end"] - state["send_start"])     * 1000 if state["send_end"] else 0
-        waiting_time = (resp_time - state["send_end"])               * 1000 if state["send_end"] else 0
+        # receiving = waktu deserialize response (analog REST baca body)
+        resp_bytes    = len(res.SerializeToString()) if res else 0
+        resp_end      = time.perf_counter()
 
-        _rec("grpc_req_duration",    req_duration)
-        _rec("grpc_stream_duration", req_duration)
-        _rec("grpc_req_sending",     sending_time)
-        _rec("grpc_req_waiting",     waiting_time)
-        _rec("grpc_data_sent",       state["bytes_sent"])
-        _rec("grpc_data_received",   resp_bytes)
-        # chunk_count berguna untuk analisis efisiensi di notebook
-        _rec("grpc_chunk_count",     state["chunk_count"])
-        _rec("grpc_chunk_size_kb",   state["chunk_size"] / 1024)
+        # ── Hitung fase (ms) — definisi identik dengan REST ──────────────────
+        req_duration   = (resp_end          - req_start)            * 1000
+        sending_time   = (state["send_end"] - state["send_start"])  * 1000 if state["send_end"] else 0
+        waiting_time   = (resp_received     - state["send_end"])    * 1000 if state["send_end"] else 0
+        receiving_time = (resp_end          - resp_received)        * 1000
+
+        sending_time   = max(sending_time,   0.0)
+        waiting_time   = max(waiting_time,   0.0)
+        receiving_time = max(receiving_time, 0.0)
+
+        _rec("grpc_req_duration",  req_duration)
+        _rec("grpc_req_sending",   sending_time)
+        _rec("grpc_req_waiting",   waiting_time)
+        _rec("grpc_req_receiving", receiving_time)
+        _rec("grpc_data_sent",     state["bytes_sent"])
+        _rec("grpc_data_received", resp_bytes)
+        _rec("grpc_chunk_count",   state["chunk_count"])
+        _rec("grpc_chunk_size_kb", state["chunk_size"] / 1024)
 
         assertion_err = _assert(res, tc)
         if assertion_err:
@@ -173,10 +173,10 @@ def analyze_skin(stub, environment) -> None:
             error_msg = f"{type(e).__name__}: {e}"
         exc        = e
         elapsed_ms = (time.perf_counter() - req_start) * 1000
-        _rec("grpc_req_duration",    elapsed_ms, error=error_msg)
-        _rec("grpc_req_failed",      1,          error=error_msg)
-        _rec("grpc_req_success_rate",0,          error=error_msg)
-        _rec("iterations",           1,          error=error_msg)
+        _rec("grpc_req_duration",     elapsed_ms, error=error_msg)
+        _rec("grpc_req_failed",       1,           error=error_msg)
+        _rec("grpc_req_success_rate", 0,           error=error_msg)
+        _rec("iterations",            1,           error=error_msg)
 
     finally:
         with _active_lock:
