@@ -1,46 +1,77 @@
 """
-locustfile.py — dipanggil dari dalam folder bencmark/
+locustfile.py
 
-Contoh:
-  SCENARIO=load GRPC_ADDR=127.0.0.1:8008 \
+Entry point Locust untuk benchmark gRPC vs REST.
+
+Mengikuti struktur kode asli:
+  - SCENARIO, NETWORK dibaca via os.environ (sama seperti di task files)
+  - CsvListener distart di on_init, di-stop di on_quit
+  - analyze_skin() di grpc_task & rest_task namanya sama, alias berbeda
+
+Jalankan:
+  SCENARIO=load NETWORK=normal \
+    locust -f locustfile.py RestUser --headless -u 10 -r 2 --run-time 9m
+
+  SCENARIO=smoke NETWORK=3g \
     locust -f locustfile.py GrpcUser --headless
-
-  SCENARIO=spike NETWORK=poor GRPC_ADDR=10.0.0.1:8008 REST_ADDR=http://10.0.0.1:8088 \
-    locust -f locustfile.py RestUser GrpcUser --headless \
-    --csv=results/spike_poor
 """
 
 from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
 
-from locust import HttpUser, User, task, between, LoadTestShape, events
-from locust.runners import WorkerRunner, MasterRunner
+from locust import HttpUser, User, task, between, events, LoadTestShape
+from locust.runners import WorkerRunner
 
-from src.config.config import GRPC_ADDR, REST_ADDR, SCENARIOS
-from src.tasks.rest_task  import analyze_skin as rest_analyze
-from src.tasks.grpc_task  import analyze_skin as grpc_analyze
-from src.utils.grpc_client import get_shared_channel, make_stub
+# Baca env — konsisten dengan cara task files membaca SCENARIO/NETWORK
+SCENARIO    = os.environ.get("SCENARIO",    "load")
+NETWORK     = os.environ.get("NETWORK",     "normal")
+GRPC_ADDR   = os.environ.get("GRPC_ADDR",  "127.0.0.1:8008")
+REST_ADDR   = os.environ.get("REST_ADDR",  "http://127.0.0.1:8088")
+RESULTS_DIR = os.environ.get("RESULTS_DIR","results")
+EXP_NAME    = os.environ.get("EXP_NAME",   "percobaan")
+
+from src.tasks.rest_task   import analyze_skin as _rest_task
+from src.tasks.grpc_task   import analyze_skin as _grpc_task
+from src.utils.grpc_client import make_channel, make_stub
 from src.metrics.metrics   import CsvListener
 
-# ─── Env ─────────────────────────────────────────────────────────────────────
-SCENARIO   = os.environ.get("SCENARIO",   "load")
-NETWORK    = os.environ.get("NETWORK",    "normal")
-EXP_NAME   = os.environ.get("EXP_NAME",  "experiment")
-RESULTS_DIR= os.environ.get("RESULTS_DIR","results")
-
-_shape = SCENARIOS.get(SCENARIO, SCENARIOS["load"])
-
-# ─── CSV output path (sama pola dengan k6: proto_net_scenario_ts.csv) ────────
-_ts       = time.strftime("%Y%m%d_%H%M%S")
-_csv_path = str(Path(RESULTS_DIR) / f"{EXP_NAME}_{NETWORK}_{SCENARIO}_{_ts}_metrics.csv")
-
-_csv_listener: CsvListener | None = None
-
-
 # ─── Load Shape ───────────────────────────────────────────────────────────────
+
+_SHAPES: dict[str, list[tuple[int, int, float]]] = {
+    "smoke": [
+        (60,  1, 1),
+        (10,  0, 1),
+    ],
+    "load": [
+        (120, 10, 1),
+        (300, 10, 0),
+        (120,  0, 1),
+    ],
+    "stress": [
+        (120, 20, 1),
+        (300, 20, 0),
+        (120, 40, 1),
+        (300, 40, 0),
+        (120,  0, 2),
+    ],
+    "spike": [
+        (60,  10, 1),
+        (30,  50, 5),
+        (180, 50, 0),
+        (60,  10, 2),
+        (60,   0, 2),
+    ],
+    "soak": [
+        (30,  15, 1),
+        (1800,15, 0),
+        (30,   0, 2),
+    ],
+}
+
+_shape = _SHAPES.get(SCENARIO, _SHAPES["load"])
+
 
 class BenchmarkShape(LoadTestShape):
     def tick(self):
@@ -49,11 +80,11 @@ class BenchmarkShape(LoadTestShape):
         for duration, target, rate in _shape:
             elapsed += duration
             if run_time < elapsed:
-                return (target, rate or 1)
+                return (target, rate if rate > 0 else max(target, 1))
         return None
 
 
-# ─── Users ────────────────────────────────────────────────────────────────────
+# ─── REST User ────────────────────────────────────────────────────────────────
 
 class RestUser(HttpUser):
     host      = REST_ADDR
@@ -61,41 +92,81 @@ class RestUser(HttpUser):
 
     @task
     def skin_analysis(self):
-        rest_analyze(self.client)
+        _rest_task(self.client)
 
+
+# ─── gRPC User ────────────────────────────────────────────────────────────────
 
 class GrpcUser(User):
-    wait_time = between(1, 3)
+    wait_time    = between(1, 3)
+    _MAX_RETRIES = 3
 
     def on_start(self):
-        # Gunakan shared channel — tidak buat channel baru per VU.
-        # Semua GrpcUser berbagi 1 channel dengan N concurrent HTTP/2 stream.
-        # Channel TIDAK di-close di on_stop() karena milik shared registry.
-        self._stub = make_stub(get_shared_channel(GRPC_ADDR))
+        """
+        Buat channel sekali per user, di-reuse semua iterasi.
+
+        FIX: Retry dengan backoff — kalau HTTP/2 handshake gagal di 3g,
+        user tidak langsung mati tanpa merekam data ke CSV.
+        """
+        from src.metrics.metrics import collector
+
+        last_err = None
+        for attempt in range(1, self._MAX_RETRIES + 1):
+            try:
+                self._channel = make_channel(GRPC_ADDR)
+                self._stub    = make_stub(self._channel)
+                return
+            except Exception as e:
+                last_err = e
+                wait     = attempt * 2
+                print(f"[GrpcUser] on_start attempt {attempt} gagal: {e} — retry {wait}s")
+                time.sleep(wait)
+
+        # Semua retry gagal — record ke CSV agar tidak hilang
+        err_msg = f"on_start gagal {self._MAX_RETRIES}x: {last_err}"
+        print(f"[GrpcUser] {err_msg}")
+        collector.record("grpc", SCENARIO, NETWORK, "grpc_req_failed",       1, error=err_msg)
+        collector.record("grpc", SCENARIO, NETWORK, "grpc_req_success_rate", 0, error=err_msg)
+        collector.record("grpc", SCENARIO, NETWORK, "iterations",            1, error=err_msg)
+        self._stub = None
+        self._channel = None
+
+    def on_stop(self):
+        # Shared channel dikelola di level proses, jangan di-close per user.
+        self._stub = None
+        self._channel = None
 
     @task
     def skin_analysis(self):
-        grpc_analyze(self._stub, self.environment)
+        # Guard: on_start gagal → skip task (sudah di-record sebagai error)
+        if not getattr(self, "_stub", None):
+            return
+        _grpc_task(self._stub, self.environment)
 
 
-# ─── Lifecycle hooks ─────────────────────────────────────────────────────────
+# ─── CSV Listener lifecycle ───────────────────────────────────────────────────
+
+_csv_listener: CsvListener | None = None
+
 
 @events.init.add_listener
-def on_init(environment, **_):
+def on_locust_init(environment, **_):
     global _csv_listener
 
     if isinstance(environment.runner, WorkerRunner):
-        return
+        return   # distributed worker tidak buat CSV sendiri
 
-    print(f"[locust] scenario    : {SCENARIO}")
-    print(f"[locust] network     : {NETWORK}")
-    print(f"[locust] REST        : {REST_ADDR}")
-    print(f"[locust] gRPC        : {GRPC_ADDR}")
-    print(f"[locust] shape       : {_shape}")
-    print(f"[locust] metrics csv : {_csv_path}")
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    csv_path = os.path.join(RESULTS_DIR, f"{EXP_NAME}_{NETWORK}_{SCENARIO}_metrics.csv")
 
-    _csv_listener = CsvListener(_csv_path, interval=2.0)
+    _csv_listener = CsvListener(out_path=csv_path, interval=1.0)
     _csv_listener.start()
+
+    print(f"[locustfile] Scenario  : {SCENARIO}")
+    print(f"[locustfile] Network   : {NETWORK}")
+    print(f"[locustfile] REST addr : {REST_ADDR}")
+    print(f"[locustfile] gRPC addr : {GRPC_ADDR}")
+    print(f"[locustfile] CSV out   : {csv_path}")
 
 
 @events.quitting.add_listener

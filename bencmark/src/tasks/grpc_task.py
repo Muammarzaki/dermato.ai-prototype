@@ -32,7 +32,7 @@ from src.metrics.metrics import collector
 
 _cycle          = itertools.cycle(TEST_DATASET)
 _active_streams = 0
-_active_lock    = __import__("threading").Lock()
+_active_lock    = __import__("gevent.lock", fromlist=["BoundedSemaphore"]).BoundedSemaphore(1)
 
 SCENARIO = os.environ.get("SCENARIO", "load")
 NETWORK  = os.environ.get("NETWORK",  "normal")
@@ -42,30 +42,31 @@ def _rec(metric: str, value: float, error: str = "") -> None:
     collector.record("grpc", SCENARIO, NETWORK, metric, value, error=error)
 
 
-# ─── Dynamic chunk size ───────────────────────────────────────────────────────
-_NETWORK_SCALE = {
-    "normal": 1.00,
-    "4g":     1.00,
-    "poor":   0.75,
-    "3g":     0.50,
-    "worst":  0.40,
+# ─── Dynamic chunk size ─────────────────────────────────────────────────────
+#
+# Chunk size ditentukan oleh kondisi jaringan, bukan ukuran file.
+#
+# normal  → 256KB: loopback/LAN, BDP sangat kecil, chunk besar OK
+# 4g      → 128KB: 1280KB/s, delay 80ms, loss 0.5%
+# poor    → 128KB: no rate limit, delay 100ms, loss 1%
+# 3g      →  64KB: 48KB/s — chunk >64KB butuh >1s per chunk, rentan timeout
+#                   BDP = 48 × 0.4s = 19KB → 64KB sudah cukup
+# worst   → 128KB: TIDAK ada rate limit! hanya delay 300ms + loss 3%
+#                   Sebelumnya worst=40% < 3g=50% — TERBALIK karena
+#                   worst tidak punya rate limit tapi chunk-nya lebih kecil.
+#                   Fix: worst = 128KB (lebih besar dari 3g=64KB)
+
+_NETWORK_CHUNK_KB = {
+    "normal": 256,
+    "4g":     128,
+    "poor":   128,
+    "3g":      64,
+    "worst":  128,
 }
 
 def _get_chunk_size(file_size_bytes: int) -> int:
-    size_mb = file_size_bytes / (1024 * 1024)
-
-    if size_mb <= 1.0:
-        base_kb = 256
-    elif size_mb <= 2.0:
-        base_kb = 512
-    elif size_mb <= 3.0:
-        base_kb = 768
-    else:
-        base_kb = 1024
-
-    scale = _NETWORK_SCALE.get(NETWORK, 0.75)
-    final = int(base_kb * scale) * 1024
-    return max(final, 64 * 1024)
+    chunk_kb = _NETWORK_CHUNK_KB.get(NETWORK, 128)
+    return chunk_kb * 1024
 
 
 def _request_iter(tc: dict, state: dict) -> Iterator:
@@ -94,20 +95,28 @@ def _request_iter(tc: dict, state: dict) -> Iterator:
     state["chunk_times_ms"]   = []  # waktu per chunk (ms)
     state["chunk_bytes_list"] = []  # ukuran aktual per chunk (bytes)
 
+    # Gunakan memoryview untuk hindari copy bytes per chunk.
+    # memoryview(data)[offset:end] tidak mengalokasikan memory baru —
+    # hanya pointer ke slice dari bytes asli.
+    # bytes() dipanggil hanya saat protobuf benar-benar serialize ke wire.
+    data_view = memoryview(data)
+
     while offset < len(data):
         end        = min(offset + chunk_size, len(data))
-        chunk_data = data[offset:end]
-        chunk      = pb2.AnalyzeSkinRequest(chunk=chunk_data)
+        chunk_size_actual = end - offset
+
+        # Zero-copy slice — tidak alokasi memory baru sampai protobuf serialize
+        chunk = pb2.AnalyzeSkinRequest(chunk=bytes(data_view[offset:end]))
 
         t_chunk_start = time.perf_counter()
-        state["bytes_sent"]  += end - offset
+        state["bytes_sent"]  += chunk_size_actual
         state["chunk_count"] += 1
         yield chunk                         # gRPC kirim chunk di sini
-        t_chunk_end = time.perf_counter()   # kontrol kembali = chunk ter-ack
+        t_chunk_end = time.perf_counter()   # kontrol kembali = chunk ter-ack / flow control
 
         chunk_ms = (t_chunk_end - t_chunk_start) * 1000
         state["chunk_times_ms"].append(chunk_ms)
-        state["chunk_bytes_list"].append(end - offset)
+        state["chunk_bytes_list"].append(chunk_size_actual)
 
         offset = end
 
