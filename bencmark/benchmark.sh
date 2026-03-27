@@ -171,6 +171,7 @@ run_test() {
   set +e
   sudo -u "$REAL_USER" -H \
     env SCENARIO="$scenario" NETWORK="$net" EXP_NAME="$EXP_NAME" \
+        PROTO="$proto" \
         RESULTS_DIR="$RESULTS_DIR" GRPC_ADDR="$GRPC_ADDR" REST_ADDR="$REST_ADDR" \
     "$LOCUST_BIN" \
       -f "$SCRIPT_DIR/locustfile.py" "$user_class" \
