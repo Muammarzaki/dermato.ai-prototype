@@ -25,12 +25,13 @@ from locust import HttpUser, User, task, between, events, LoadTestShape
 from locust.runners import WorkerRunner
 
 # Baca env — konsisten dengan cara task files membaca SCENARIO/NETWORK
-SCENARIO = os.environ.get("SCENARIO", "load")
-NETWORK = os.environ.get("NETWORK", "normal")
-GRPC_ADDR = os.environ.get("GRPC_ADDR", "127.0.0.1:8008")
-REST_ADDR = os.environ.get("REST_ADDR", "http://127.0.0.1:8088")
-RESULTS_DIR = os.environ.get("RESULTS_DIR", "results")
-EXP_NAME = os.environ.get("EXP_NAME", "percobaan")
+SCENARIO    = os.environ.get("SCENARIO",    "load")
+NETWORK     = os.environ.get("NETWORK",     "normal")
+PROTO       = os.environ.get("PROTO",       "unknown")
+GRPC_ADDR   = os.environ.get("GRPC_ADDR",  "127.0.0.1:8008")
+REST_ADDR   = os.environ.get("REST_ADDR",  "http://127.0.0.1:8088")
+RESULTS_DIR = os.environ.get("RESULTS_DIR","results")
+EXP_NAME    = os.environ.get("EXP_NAME",   "percobaan")
 
 from src.tasks.rest_task import analyze_skin as _rest_task
 from src.tasks.grpc_task import analyze_skin as _grpc_task
@@ -164,6 +165,7 @@ def on_locust_init(environment, **_):
 
     print(f"[locustfile] Scenario  : {SCENARIO}")
     print(f"[locustfile] Network   : {NETWORK}")
+    print(f"[locustfile] Proto     : {PROTO}")
     print(f"[locustfile] REST addr : {REST_ADDR}")
     print(f"[locustfile] gRPC addr : {GRPC_ADDR}")
     print(f"[locustfile] CSV out   : {csv_path}")
