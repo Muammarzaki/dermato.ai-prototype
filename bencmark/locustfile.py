@@ -78,10 +78,15 @@ class BenchmarkShape(LoadTestShape):
     def tick(self):
         run_time = self.get_run_time()
         elapsed = 0
+
         for duration, target, rate in _shape:
             elapsed += duration
             if run_time < elapsed:
-                return (target, rate if rate > 0 else max(target, 1))
+                # Kalau target 0, benar-benar idle (jangan dipaksa jadi 1)
+                if target <= 0:
+                    return 0, 1
+                return target, rate if rate > 0 else 1
+
         return None
 
 

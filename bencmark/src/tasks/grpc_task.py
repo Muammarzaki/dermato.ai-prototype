@@ -171,13 +171,19 @@ def analyze_skin(stub, environment) -> None:
             _rec("grpc_req_success_rate", 1)
             _rec("iterations", 1)
 
+            # ... existing code ...
+
     except Exception as e:
         import grpc as _grpc
         code = getattr(e, "code", lambda: None)()
-        if code in (_grpc.StatusCode.DEADLINE_EXCEEDED, _grpc.StatusCode.UNAVAILABLE):
+
+        if code == _grpc.StatusCode.DEADLINE_EXCEEDED:
             error_msg = f"TIMEOUT({NETWORK}): {code.name} setelah {TIMEOUT}s"
+        elif code == _grpc.StatusCode.UNAVAILABLE:
+            error_msg = f"TRANSPORT({NETWORK}): {code.name}"
         else:
             error_msg = f"{type(e).__name__}: {e}"
+
         exc = e
         elapsed_ms = (time.perf_counter() - req_start) * 1000
         _rec("grpc_req_duration", elapsed_ms, error=error_msg)
