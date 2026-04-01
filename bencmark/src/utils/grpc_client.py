@@ -1,10 +1,5 @@
 """
 src/utils/grpc_client.py
-
-Versi Akademik (Fair Benchmarking)
-- Menggunakan Channel Pool agar setara dengan REST Connection Pooling.
-- Parameter statis (tidak mendeteksi simulasi jaringan).
-- Mengandalkan BDP Probe bawaan HTTP/2 untuk adaptasi jaringan.
 """
 
 from __future__ import annotations
