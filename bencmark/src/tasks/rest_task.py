@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import json
 import os
-import random
 import threading
 import time
 
@@ -66,8 +65,8 @@ def _rec(metric: str, value: float, error: str = "") -> None:
 def analyze_skin(client) -> None:
     global _active_requests
 
-    # random.choice: distribusi gambar acak per-call, simetris dengan grpc_task.py
-    tc = random.choice(TEST_DATASET)
+    tc = TEST_DATASET[analyze_skin._idx % len(TEST_DATASET)]
+    analyze_skin._idx += 1
 
     with _active_lock:
         _active_requests += 1
@@ -167,12 +166,10 @@ def analyze_skin(client) -> None:
         _rec("rest_active_requests", _active_requests)
 
 
+analyze_skin._idx = 0
+
+
 def _assert_structure(body: dict) -> bool:
-    """
-    Validasi struktur response — tanpa cek label AI.
-    Failure di sini = server tidak mengembalikan format yang benar.
-    Success rate (rumusan 1) murni mencerminkan keberhasilan transmisi.
-    """
     if not isinstance(body.get("analysis_id"), str):
         return False
     if not isinstance(body.get("server_sha256"), str):

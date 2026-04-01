@@ -13,29 +13,19 @@ Jalankan:
 Panduan metrik untuk analisis hasil:
 
   Rumusan 1 — Success rate & completion time:
-    success_rate  = df[df.metric=='grpc_req_success'].value.mean()
-                    (gunakan 'rest_req_success' untuk REST)
+    success_rate = df[df.metric=='grpc_req_success'].value.mean()
+                   (gunakan 'rest_req_success' untuk REST)
     completion_time = kolom 'value' pada baris metric='grpc_req_duration'
     Hanya _req_duration yang bisa dibandingkan langsung antara gRPC dan REST.
-    Breakdown internal (sending/waiting/receiving vs ttfb) TIDAK setara karena
-    perbedaan arsitektur HTTP/1.1 vs HTTP/2 — dokumentasikan di metodologi.
 
   Rumusan 2 — Payload efficiency:
-    grpc_data_sent = proto_frame_size (protobuf application-layer, pre-computed)
-    rest_data_sent = multipart wire size (boundary + headers, pre-computed)
-    Keduanya TIDAK termasuk HTTP transport headers — limitasi simetris.
-    Bandingkan: df[df.metric=='grpc_data_sent'].value vs df[df.metric=='rest_data_sent'].value
+    grpc_data_sent = proto_frame_size (pre-computed)
+    rest_data_sent = multipart wire size (pre-computed)
 
   Rumusan 4 — Konkurensi & recovery time:
     Throughput: count(iterations per detik) dari kolom timestamp
     Konkurensi: grpc_active_streams / rest_active_requests per timestamp
-    Recovery time: post-process CSV — cari gap antara req_success=0 terakhir
-                   sebelum spike dan req_success=1 pertama setelah spike:
-                   df_fail = df[(df.metric=='grpc_req_success') & (df.value==0)]
-                   df_ok   = df[(df.metric=='grpc_req_success') & (df.value==1)]
-                   t_last_fail  = df_fail.timestamp.max()
-                   t_first_ok   = df_ok[df_ok.timestamp > t_last_fail].timestamp.min()
-                   recovery_ms  = (t_first_ok - t_last_fail) * 1000
+    Recovery time: analisis post-process dari timestamp success 0 → 1
 
   Label warning (terpisah dari success rate):
     grpc_label_warning / rest_label_warning — monitor tapi jangan campur

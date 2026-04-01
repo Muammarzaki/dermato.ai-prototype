@@ -2,40 +2,22 @@
 src/tasks/grpc_task.py
 
 Perubahan dari versi sebelumnya:
-  1. tc = random.choice(TEST_DATASET) menggantikan itertools.cycle
-     → distribusi gambar acak per-call, tidak deterministik per-VU
-     → menghilangkan pola round-robin yang tidak realistis
+  1. tc diambil dari dataset yang sudah di-shuffle dengan seed tetap
+     → menghilangkan pola round-robin yang deterministik tetapi tetap
+       menjaga reproduksibilitas antar-run.
 
   2. grpc_data_sent menggunakan tc["proto_frame_size"] dari config.py
      → ukuran protobuf serialized seluruh stream (meta + semua chunk)
      → dihitung sekali saat load, nol overhead di measurement window
      → setara dengan rest_data_sent yang juga pre-computed (wire_size)
-     → membuat perbandingan payload efficiency (rumusan 2) adil dan simetris
 
   3. bytes_sent di _request_iter dihapus — tidak dipakai lagi karena
      proto_frame_size sudah pre-computed. Iterator hanya tracking
      chunk_count, chunk_times, dan send timing.
-
-Metrik utama per rumusan masalah:
-  Rumusan 1 → grpc_req_duration (completion time), grpc_req_success (transmisi)
-  Rumusan 2 → grpc_data_sent (= proto_frame_size), grpc_chunk_count, grpc_chunk_size_kb
-  Rumusan 4 → grpc_active_streams, grpc_req_duration distribusi saat spike
-
-Catatan metodologis (dokumentasikan di laporan):
-  grpc_data_sent = protobuf application-layer frame size.
-  HTTP/2 transport headers (HEADERS frame + HPACK) tidak terhitung —
-  limitasi yang SIMETRIS dengan REST (HTTP/1.1 request line + headers
-  tidak terhitung). Keduanya comparable sebagai application payload size.
-
-  grpc_req_sending diukur dari perf_counter() di dalam iterator.
-  Ada window kecil antara stub.AnalyzeSkin() dipanggil dan iterator
-  mulai di-consume oleh gRPC runtime — tidak terhitung di sending_time.
-  Efeknya diabaikan di jaringan terdegradasi (dominan oleh latency jaringan).
 """
 
 from __future__ import annotations
 
-import random
 import time
 import os
 from typing import Iterator
@@ -64,21 +46,12 @@ def _rec(metric: str, value: float, error: str = "") -> None:
 def _request_iter(tc: dict, state: dict) -> Iterator:
     """
     Generator stream AnalyzeSkinRequest.
-
-    Tracking di sini:
-      - send_start / send_end : untuk grpc_req_sending dan grpc_req_waiting
-      - chunk_count           : jumlah chunk yang dikirim
-      - chunk_times_ms        : latency per-chunk (untuk jitter analysis)
-
-    bytes_sent TIDAK di-track di sini — sudah pre-computed di config.py
-    sebagai tc["proto_frame_size"], dipakai langsung di analyze_skin().
     """
     pb2        = get_pb2()
-    chunk_size = CHUNK_SIZE_BYTES  # konsisten dengan nilai yang dipakai config.py
+    chunk_size = CHUNK_SIZE_BYTES
 
     state["chunk_size"] = chunk_size
 
-    # Pesan pertama: metadata ImageInfo
     meta_msg = pb2.AnalyzeSkinRequest(
         info=pb2.ImageInfo(
             user_id=METADATA["user_id"],
@@ -92,7 +65,6 @@ def _request_iter(tc: dict, state: dict) -> Iterator:
     )
     yield meta_msg
 
-    # Pesan berikutnya: chunk-chunk data
     data      = tc["data"]
     data_view = memoryview(data)
     offset    = 0
@@ -119,9 +91,9 @@ def _request_iter(tc: dict, state: dict) -> Iterator:
 def analyze_skin(stub, environment) -> None:
     global _active_streams
 
-    # random.choice: distribusi gambar acak per-call, tidak deterministik per-VU.
-    # Menghilangkan pola round-robin yang bisa bias hasil per-gambar.
-    tc = random.choice(TEST_DATASET)
+    # Dataset yang sudah di-shuffle seed tetap
+    tc = TEST_DATASET[analyze_skin._idx % len(TEST_DATASET)]
+    analyze_skin._idx += 1
 
     state = {
         "send_start":     None,
@@ -162,15 +134,11 @@ def analyze_skin(stub, environment) -> None:
         waiting_time   = max(waiting_time,   0.0)
         receiving_time = max(receiving_time, 0.0)
 
-        # ── Rumusan 1: completion time & breakdown ────────────────────────
-        _rec("grpc_req_duration",  req_duration)   # = "completion time" rumusan 1
+        _rec("grpc_req_duration",  req_duration)
         _rec("grpc_req_sending",   sending_time)
         _rec("grpc_req_waiting",   waiting_time)
         _rec("grpc_req_receiving", receiving_time)
 
-        # ── Rumusan 2: payload size — pre-computed, nol overhead benchmark ─
-        # grpc_data_sent = proto_frame_size: total serialized bytes (meta + semua chunk)
-        # Setara dengan rest_data_sent (multipart wire size) → perbandingan adil
         _rec("grpc_data_sent",     tc["proto_frame_size"])
         _rec("grpc_data_received", resp_bytes)
         _rec("grpc_chunk_count",   state["chunk_count"])
@@ -184,13 +152,11 @@ def analyze_skin(stub, environment) -> None:
             _rec("grpc_chunk_time_avg_ms",    0.0)
             _rec("grpc_chunk_time_jitter_ms", 0.0)
 
-        # ── Label warning — terpisah dari success rate ────────────────────
         warning = _assert_label_warning(res, tc)
         if warning:
             print(f"[grpc_task] LABEL WARNING: {warning}")
             _rec("grpc_label_warning", 1, error=warning)
 
-        # ── Rumusan 1: success = keberhasilan transmisi, bukan akurasi AI ─
         struct_err = _assert_structure(res)
         if struct_err:
             error_msg = struct_err
@@ -244,17 +210,17 @@ def analyze_skin(stub, environment) -> None:
         )
 
 
+analyze_skin._idx = 0
+
+
 def _assert_structure(res) -> str | None:
-    """
-    Validasi struktur response — tanpa cek label AI.
-    Failure di sini = server tidak mengembalikan format yang benar.
-    Success rate (rumusan 1) murni mencerminkan keberhasilan transmisi.
-    """
     failures = []
+
     if not isinstance(getattr(res, "analysis_id", None), str):
         failures.append("missing analysisId")
     if not isinstance(getattr(res, "server_sha256", None), bytes):
         failures.append("missing server_sha256")
+
     results = list(getattr(res, "results", []))
     if not results:
         failures.append("results kosong")
@@ -266,14 +232,11 @@ def _assert_structure(res) -> str | None:
         for f in ("label", "description", "recommendation"):
             if not isinstance(getattr(top, f, None), str):
                 failures.append(f"missing {f}")
+
     return " | ".join(failures) if failures else None
 
 
 def _assert_label_warning(res, tc: dict) -> str | None:
-    """
-    Cek label vs expected — warning only, tidak mempengaruhi success rate.
-    Dipisah agar akurasi model AI server tidak mencemari metrik transmisi.
-    """
     results = list(getattr(res, "results", []))
     if not results:
         return None

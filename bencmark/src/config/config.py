@@ -33,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import random
 from pathlib import Path
 
 # ─── Addresses ───────────────────────────────────────────────────────────────
@@ -73,6 +74,9 @@ _IMAGE_MANIFEST = [
     ("tahi_lalat_3.7mb.jpg", "Cacar Air"),
     ("tahi_lalat_4mb.jpg",   "Cacar Air"),
 ]
+
+# Seed tetap agar urutan dataset reproducible antar-run
+DATASET_SEED = int(os.environ.get("DATASET_SEED", "20260401"))
 
 
 def _compute_multipart_wire_size(filename: str, data: bytes) -> int:
@@ -199,7 +203,7 @@ def _load(filename: str, expected_label: str) -> dict | None:
         "hash_bytes":       hash_bytes,
         # Pre-computed sizes — dipakai langsung di task files, nol overhead saat benchmark
         "wire_size":        wire_size,        # REST multipart body size (rumusan 2)
-        "proto_frame_size": proto_frame_size, # gRPC protobuf frame size (rumusan 2)
+        "proto_frame_size": proto_frame_size,
     }
 
 
@@ -214,4 +218,7 @@ if not TEST_DATASET:
         "Pastikan folder test-images/ ada di root project."
     )
 
-print(f"[config] {len(TEST_DATASET)} gambar dimuat dari {_IMAGE_DIR}")
+_rng = random.Random(DATASET_SEED)
+_rng.shuffle(TEST_DATASET)
+
+print(f"[config] {len(TEST_DATASET)} gambar dimuat dari {_IMAGE_DIR} | seed={DATASET_SEED}")
