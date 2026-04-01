@@ -27,13 +27,6 @@ _proto_ready = False
 _stub_class  = None
 _pb2         = None
 
-_channel_pools: dict[str, list] = {}
-_pool_iterators: dict[str, itertools.cycle] = {}
-_channel_lock = threading.Lock()
-
-# Pool size adil untuk mendistribusikan beban 50 VU
-POOL_SIZE = int(os.environ.get("GRPC_CHANNEL_POOL_SIZE", "10"))
-
 def _compile_proto() -> None:
     global _proto_ready, _stub_class, _pb2
     if _proto_ready: return
@@ -68,61 +61,44 @@ def _compile_proto() -> None:
         _stub_class = pb2_grpc.SkinAnalysisServiceStub
         _proto_ready = True
 
-def get_shared_channel(address: str):
+def make_channel(address: str):
     import grpc
     _compile_proto()
 
-    if address in _pool_iterators:
-        return next(_pool_iterators[address])
+    # 1 channel baru untuk 1 VU / 1 user
+    service_config = json.dumps({
+        "methodConfig": [{
+            "name": [{}],
+            "retryPolicy": {
+                "maxAttempts": 3,
+                "initialBackoff": "0.1s",
+                "maxBackoff": "2s",
+                "backoffMultiplier": 2,
+                "retryableStatusCodes": ["UNAVAILABLE"]
+            }
+        }]
+    })
 
-    with _channel_lock:
-        if address not in _pool_iterators:
-            print(f"[grpc_client] Inisialisasi Channel Pool untuk {address} | Pool: {POOL_SIZE}")
+    return grpc.insecure_channel(
+        address,
+        options=[
+            ("grpc.max_send_message_length",    -1),
+            ("grpc.max_receive_message_length", -1),
 
-            # Service config untuk fitur bawaan gRPC (Retry transparan)
-            service_config = json.dumps({
-                "methodConfig": [{
-                    "name": [{}],
-                    "retryPolicy": {
-                        "maxAttempts": 3,
-                        "initialBackoff": "0.1s",
-                        "maxBackoff": "2s",
-                        "backoffMultiplier": 2,
-                        "retryableStatusCodes": ["UNAVAILABLE"]
-                    }
-                }]
-            })
+            ("grpc.keepalive_time_ms",             20_000),
+            ("grpc.keepalive_timeout_ms",          10_000),
+            ("grpc.keepalive_permit_without_calls", 1),
 
-            pool = []
-            for i in range(POOL_SIZE):
-                channel = grpc.insecure_channel(
-                    address,
-                    options=[
-                        ("grpc.max_send_message_length",    -1),
-                        ("grpc.max_receive_message_length", -1),
+            ("grpc.max_concurrent_streams",      100),
+            ("grpc.http2.initial_window_size",   1 * 1024 * 1024),
+            ("grpc.http2.bdp_probe",             1),
 
-                        ("grpc.keepalive_time_ms",          20_000),
-                        ("grpc.keepalive_timeout_ms",       10_000),
-                        ("grpc.keepalive_permit_without_calls", 1),
-
-                        # Konfigurasi Statis: Biarkan BDP probe yang bekerja keras beradaptasi
-                        # 1MB adalah jalan tengah yang logis untuk payload gambar
-                        ("grpc.max_concurrent_streams",      100),
-                        ("grpc.http2.initial_window_size",   1 * 1024 * 1024),
-                        ("grpc.http2.bdp_probe",             1),
-
-                        ("grpc.enable_retries",              1),
-                        ("grpc.service_config",              service_config),
-                        ("grpc.initial_reconnect_backoff_ms", 100),
-                        ("grpc.max_reconnect_backoff_ms",    3000),
-                    ],
-                )
-                pool.append(channel)
-
-            _channel_pools[address] = pool
-            _pool_iterators[address] = itertools.cycle(pool)
-
-        return next(_pool_iterators[address])
+            ("grpc.enable_retries",              1),
+            ("grpc.service_config",              service_config),
+            ("grpc.initial_reconnect_backoff_ms", 100),
+            ("grpc.max_reconnect_backoff_ms",    3000),
+        ],
+    )
 
 def make_stub(channel):
     _compile_proto()
@@ -131,6 +107,3 @@ def make_stub(channel):
 def get_pb2():
     _compile_proto()
     return _pb2
-
-def make_channel(address: str):
-    return get_shared_channel(address)

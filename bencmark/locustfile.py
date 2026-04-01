@@ -111,8 +111,7 @@ class GrpcUser(User):
         """
         Buat channel sekali per user, di-reuse semua iterasi.
 
-        FIX: Retry dengan backoff — kalau HTTP/2 handshake gagal di 3g,
-        user tidak langsung mati tanpa merekam data ke CSV.
+        Ini membuat simulasi lebih mirip 1 device = 1 koneksi.
         """
         from src.metrics.metrics import collector
 
@@ -138,7 +137,9 @@ class GrpcUser(User):
         self._channel = None
 
     def on_stop(self):
-        # Shared channel dikelola di level proses, jangan di-close per user.
+        # Tutup channel milik user ini sendiri
+        if getattr(self, "_channel", None):
+            self._channel.close()
         self._stub = None
         self._channel = None
 
