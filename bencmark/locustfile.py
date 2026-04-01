@@ -3,17 +3,43 @@ locustfile.py
 
 Entry point Locust untuk benchmark gRPC vs REST.
 
-Mengikuti struktur kode asli:
-  - SCENARIO, NETWORK dibaca via os.environ (sama seperti di task files)
-  - CsvListener distart di on_init, di-stop di on_quit
-  - analyze_skin() di grpc_task & rest_task namanya sama, alias berbeda
-
 Jalankan:
   SCENARIO=load NETWORK=normal \
     locust -f locustfile.py RestUser --headless -u 10 -r 2 --run-time 9m
 
   SCENARIO=smoke NETWORK=3g \
     locust -f locustfile.py GrpcUser --headless
+
+Panduan metrik untuk analisis hasil:
+
+  Rumusan 1 — Success rate & completion time:
+    success_rate  = df[df.metric=='grpc_req_success'].value.mean()
+                    (gunakan 'rest_req_success' untuk REST)
+    completion_time = kolom 'value' pada baris metric='grpc_req_duration'
+    Hanya _req_duration yang bisa dibandingkan langsung antara gRPC dan REST.
+    Breakdown internal (sending/waiting/receiving vs ttfb) TIDAK setara karena
+    perbedaan arsitektur HTTP/1.1 vs HTTP/2 — dokumentasikan di metodologi.
+
+  Rumusan 2 — Payload efficiency:
+    grpc_data_sent = proto_frame_size (protobuf application-layer, pre-computed)
+    rest_data_sent = multipart wire size (boundary + headers, pre-computed)
+    Keduanya TIDAK termasuk HTTP transport headers — limitasi simetris.
+    Bandingkan: df[df.metric=='grpc_data_sent'].value vs df[df.metric=='rest_data_sent'].value
+
+  Rumusan 4 — Konkurensi & recovery time:
+    Throughput: count(iterations per detik) dari kolom timestamp
+    Konkurensi: grpc_active_streams / rest_active_requests per timestamp
+    Recovery time: post-process CSV — cari gap antara req_success=0 terakhir
+                   sebelum spike dan req_success=1 pertama setelah spike:
+                   df_fail = df[(df.metric=='grpc_req_success') & (df.value==0)]
+                   df_ok   = df[(df.metric=='grpc_req_success') & (df.value==1)]
+                   t_last_fail  = df_fail.timestamp.max()
+                   t_first_ok   = df_ok[df_ok.timestamp > t_last_fail].timestamp.min()
+                   recovery_ms  = (t_first_ok - t_last_fail) * 1000
+
+  Label warning (terpisah dari success rate):
+    grpc_label_warning / rest_label_warning — monitor tapi jangan campur
+    dengan success rate transmisi.
 """
 
 from __future__ import annotations
@@ -24,7 +50,6 @@ import time
 from locust import HttpUser, User, task, between, events, LoadTestShape
 from locust.runners import WorkerRunner
 
-# Baca env — konsisten dengan cara task files membaca SCENARIO/NETWORK
 SCENARIO    = os.environ.get("SCENARIO",    "load")
 NETWORK     = os.environ.get("NETWORK",     "normal")
 PROTO       = os.environ.get("PROTO",       "unknown")
@@ -77,23 +102,25 @@ _shape = _SHAPES.get(SCENARIO, _SHAPES["load"])
 class BenchmarkShape(LoadTestShape):
     def tick(self):
         run_time = self.get_run_time()
-        elapsed = 0
-
+        elapsed  = 0
         for duration, target, rate in _shape:
             elapsed += duration
             if run_time < elapsed:
-                # Kalau target 0, benar-benar idle (jangan dipaksa jadi 1)
                 if target <= 0:
                     return 0, 1
                 return target, rate if rate > 0 else 1
-
         return None
 
 
 # ─── REST User ────────────────────────────────────────────────────────────────
 
 class RestUser(HttpUser):
-    host = REST_ADDR
+    """
+    Satu VU = satu HTTP session dengan keep-alive (default requests.Session).
+    Koneksi persistent antar request dalam session yang sama —
+    setara dengan gRPC yang mempertahankan channel selama think time.
+    """
+    host      = REST_ADDR
     wait_time = between(1, 3)
 
     @task
@@ -104,48 +131,45 @@ class RestUser(HttpUser):
 # ─── gRPC User ────────────────────────────────────────────────────────────────
 
 class GrpcUser(User):
-    wait_time = between(1, 3)
+    """
+    Satu VU = satu gRPC channel (insecure, persistent).
+    Channel tidak di-share antar VU — setiap VU merepresentasikan satu device.
+    Channel tetap hidup selama think time (between 1–3s) — setara dengan
+    HTTP keep-alive di RestUser.
+    """
+    wait_time    = between(1, 3)
     _MAX_RETRIES = 3
 
     def on_start(self):
-        """
-        Buat channel sekali per user, di-reuse semua iterasi.
-
-        Ini membuat simulasi lebih mirip 1 device = 1 koneksi.
-        """
         from src.metrics.metrics import collector
 
         last_err = None
         for attempt in range(1, self._MAX_RETRIES + 1):
             try:
                 self._channel = make_channel(GRPC_ADDR)
-                self._stub = make_stub(self._channel)
+                self._stub    = make_stub(self._channel)
                 return
             except Exception as e:
                 last_err = e
-                wait = attempt * 2
+                wait     = attempt * 2
                 print(f"[GrpcUser] on_start attempt {attempt} gagal: {e} — retry {wait}s")
                 time.sleep(wait)
 
-        # Semua retry gagal — record ke CSV agar tidak hilang
         err_msg = f"on_start gagal {self._MAX_RETRIES}x: {last_err}"
         print(f"[GrpcUser] {err_msg}")
-        collector.record("grpc", SCENARIO, NETWORK, "grpc_req_failed", 1, error=err_msg)
-        collector.record("grpc", SCENARIO, NETWORK, "grpc_req_success_rate", 0, error=err_msg)
-        collector.record("grpc", SCENARIO, NETWORK, "iterations", 1, error=err_msg)
-        self._stub = None
+        collector.record("grpc", SCENARIO, NETWORK, "grpc_req_success", 0, error=err_msg)
+        collector.record("grpc", SCENARIO, NETWORK, "iterations",       1, error=err_msg)
+        self._stub    = None
         self._channel = None
 
     def on_stop(self):
-        # Tutup channel milik user ini sendiri
         if getattr(self, "_channel", None):
             self._channel.close()
-        self._stub = None
+        self._stub    = None
         self._channel = None
 
     @task
     def skin_analysis(self):
-        # Guard: on_start gagal → skip task (sudah di-record sebagai error)
         if not getattr(self, "_stub", None):
             return
         _grpc_task(self._stub, self.environment)
@@ -161,20 +185,41 @@ def on_locust_init(environment, **_):
     global _csv_listener
 
     if isinstance(environment.runner, WorkerRunner):
-        return  # distributed worker tidak buat CSV sendiri
+        return
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    csv_path = os.path.join(RESULTS_DIR, f"{EXP_NAME}_{NETWORK}_{SCENARIO}_{PROTO}_metrics.csv")
+    csv_path = os.path.join(
+        RESULTS_DIR,
+        f"{EXP_NAME}_{NETWORK}_{SCENARIO}_{PROTO}_metrics.csv"
+    )
 
-    _csv_listener = CsvListener(out_path=csv_path, interval=1.0)
+    # interval=None → CsvListener pilih otomatis berdasarkan SCENARIO
+    _csv_listener = CsvListener(out_path=csv_path, interval=None)
     _csv_listener.start()
 
+    # Import dataset untuk tampilkan ringkasan pre-computed sizes
+    from src.config.config import TEST_DATASET
+    print(f"\n[locustfile] ── Benchmark Config ──────────────────────")
     print(f"[locustfile] Scenario  : {SCENARIO}")
     print(f"[locustfile] Network   : {NETWORK}")
     print(f"[locustfile] Proto     : {PROTO}")
     print(f"[locustfile] REST addr : {REST_ADDR}")
     print(f"[locustfile] gRPC addr : {GRPC_ADDR}")
     print(f"[locustfile] CSV out   : {csv_path}")
+    print(f"[locustfile] ── Dataset ({len(TEST_DATASET)} gambar) ─────────────────")
+    for tc in TEST_DATASET:
+        print(
+            f"[locustfile]   {tc['filename']}: "
+            f"raw={len(tc['data'])//1024}KB "
+            f"wire={tc['wire_size']//1024}KB "
+            f"proto={tc['proto_frame_size']//1024}KB"
+        )
+    print(f"[locustfile] ── Metrik ─────────────────────────────────")
+    print(f"[locustfile] Success rate  : df[metric=='grpc_req_success'].value.mean()")
+    print(f"[locustfile] Payload gRPC  : metric='grpc_data_sent' (proto_frame_size)")
+    print(f"[locustfile] Payload REST  : metric='rest_data_sent'  (multipart wire)")
+    print(f"[locustfile] Recovery time : post-process dari timestamp req_success=0→1")
+    print(f"[locustfile] ────────────────────────────────────────────\n")
 
 
 @events.quitting.add_listener

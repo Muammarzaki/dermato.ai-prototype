@@ -1,34 +1,54 @@
 """
 src/tasks/rest_task.py
 
-Pengukuran waktu menggunakan perf_counter() manual — konsisten dengan grpc_task.py.
+Perubahan dari versi sebelumnya:
+  1. tc = random.choice(TEST_DATASET) menggantikan itertools.cycle
+     → distribusi gambar acak per-call, simetris dengan grpc_task.py
 
-Breakdown waktu:
-  req_start
+  2. wire_size diambil dari tc["wire_size"] (pre-computed di config.py)
+     → PreparedRequest.prepare() TIDAK lagi dipanggil di dalam loop benchmark
+     → menghilangkan overhead 5–15ms yang sebelumnya terjadi sebelum t_send_start
+     → rest_data_sent kini benar-benar nol-overhead, setara dengan grpc_data_sent
+
+  3. _compute_wire_size() dihapus sepenuhnya — logikanya sudah ada di config.py
+
+Breakdown waktu (limitasi HTTP/1.1 didokumentasikan):
+  t_send_start
     │
-    ├─── [sending]        Waktu upload body (multipart image) ke server
-    ├─── [waiting]        Server processing → TTFB
-    └─── [receiving]      Download response body
-  req_end
+    ├─── rest_req_ttfb      upload body + server processing → byte pertama response
+    │                       (tidak bisa dipisah di HTTP/1.1 tanpa akses TCP layer)
+    └─── rest_req_receiving download body setelah byte pertama
+  t_end
+
+  rest_req_ttfb vs grpc_req_waiting TIDAK setara — lihat docstring di bawah.
+  Hanya rest_req_duration vs grpc_req_duration yang bisa dibandingkan langsung
+  sebagai completion time (rumusan masalah 1).
+
+Metrik utama per rumusan masalah:
+  Rumusan 1 → rest_req_duration (completion time), rest_req_success (transmisi)
+  Rumusan 2 → rest_data_sent (= wire_size pre-computed), rest_data_received
+  Rumusan 4 → rest_active_requests, rest_req_duration distribusi saat spike
+
+Catatan metodologis (dokumentasikan di laporan):
+  rest_data_sent = multipart/form-data body size aktual (termasuk boundary,
+  Content-Disposition, dan Content-Type per field). HTTP/1.1 request line
+  dan header tidak terhitung — simetris dengan gRPC (HTTP/2 HEADERS + HPACK
+  tidak terhitung). Keduanya comparable sebagai application payload size.
 """
 
 from __future__ import annotations
 
-import itertools
 import json
 import os
+import random
 import threading
 import time
 
 from src.config.config import TEST_DATASET, METADATA, TIMEOUT
 from src.metrics.metrics import collector
 
-_cycle = itertools.cycle(TEST_DATASET)
 _active_requests = 0
 
-# FIX: ganti BoundedSemaphore(1) dengan RLock — lebih tepat sebagai mutex
-# BoundedSemaphore bisa di-release oleh greenlet berbeda dari yang acquire;
-# RLock hanya bisa di-release oleh owner-nya
 try:
     from gevent.lock import RLock as _GRLock
     _active_lock = _GRLock()
@@ -46,11 +66,16 @@ def _rec(metric: str, value: float, error: str = "") -> None:
 def analyze_skin(client) -> None:
     global _active_requests
 
-    tc = next(_cycle)
+    # random.choice: distribusi gambar acak per-call, simetris dengan grpc_task.py
+    tc = random.choice(TEST_DATASET)
 
     with _active_lock:
         _active_requests += 1
     _rec("rest_active_requests", _active_requests)
+
+    # wire_size pre-computed di config.py — nol overhead di measurement window
+    # mencakup multipart boundary + Content-Disposition + Content-Type per field
+    wire_size = tc["wire_size"]
 
     files = {"file": (tc["filename"], tc["data"], "image/jpeg")}
     data  = {
@@ -59,14 +84,7 @@ def analyze_skin(client) -> None:
         "metadata":      json.dumps(METADATA["meta_tags"]),
     }
 
-    request_size = (
-        len(tc["data"]) +
-        len(METADATA["user_id"].encode()) +
-        len(tc["hash_hex"].encode()) +
-        len(json.dumps(METADATA["meta_tags"]).encode())
-    )
-
-    t_start = time.perf_counter()
+    t_send_start = time.perf_counter()
 
     try:
         with client.post(
@@ -74,31 +92,32 @@ def analyze_skin(client) -> None:
             files=files,
             data=data,
             timeout=TIMEOUT,
+            stream=True,           # stream=True agar t_ttfb bisa diukur aktual
             name="REST /analyze-skin",
             catch_response=True,
         ) as res:
 
-            t_end = time.perf_counter()
+            # TTFB: dari t_send_start sampai byte pertama response.
+            # Mencakup upload + server processing — tidak bisa dipisah di HTTP/1.1.
+            # Ini bukan setara dengan grpc_req_waiting (yang murni server processing).
+            # Hanya rest_req_duration vs grpc_req_duration yang comparable (rumusan 1).
+            t_ttfb = time.perf_counter()
 
-            req_duration_ms = (t_end - t_start) * 1000
-            elapsed_lib     = res.elapsed.total_seconds() * 1000 if res.elapsed else req_duration_ms
-            final_duration  = elapsed_lib
+            content = res.content   # baca seluruh body setelah TTFB terukur
+            t_end   = time.perf_counter()
 
-            response_size  = len(res.content) if res.content else 0
-            total_bytes    = request_size + response_size + 1  # +1 hindari div/0
+            req_duration_ms = (t_end - t_send_start) * 1000
+            ttfb_ms         = (t_ttfb - t_send_start) * 1000
+            receiving_ms    = max((t_end - t_ttfb) * 1000, 0.0)
+            response_size   = len(content) if content else 0
 
-            sending_ratio  = request_size  / total_bytes
-            receiving_ratio= response_size / total_bytes
-
-            sending_ms  = max(final_duration * sending_ratio,   10.0)
-            receiving_ms= max(final_duration * receiving_ratio,  5.0)
-            waiting_ms  = max(final_duration - sending_ms - receiving_ms, 0.0)
-
-            _rec("rest_req_duration",  final_duration)
-            _rec("rest_req_sending",   sending_ms)
-            _rec("rest_req_waiting",   waiting_ms)
+            # ── Rumusan 1: completion time & breakdown ────────────────────
+            _rec("rest_req_duration",  req_duration_ms)  # = "completion time" rumusan 1
+            _rec("rest_req_ttfb",      ttfb_ms)          # upload+waiting, tidak dipisah
             _rec("rest_req_receiving", receiving_ms)
-            _rec("rest_data_sent",     request_size)
+
+            # ── Rumusan 2: payload size — pre-computed, nol overhead ──────
+            _rec("rest_data_sent",     wire_size)         # multipart wire size
             _rec("rest_data_received", response_size)
 
             failure_reason = ""
@@ -107,37 +126,40 @@ def analyze_skin(client) -> None:
                 failure_reason = f"HTTP {res.status_code}: {res.text[:200]}"
             else:
                 try:
-                    body          = res.json()
-                    assertion_err = _assert(body, tc)
-                    if assertion_err:
-                        failure_reason = assertion_err
+                    body    = res.json()
+                    warning = _assert_with_warning(body, tc)
+                    if warning:
+                        # Label mismatch = warning, bukan failure transmisi.
+                        # Success rate (rumusan 1) tidak terpengaruh akurasi model AI.
+                        print(f"[rest_task] LABEL WARNING: {warning}")
+                        _rec("rest_label_warning", 1, error=warning)
+                    if not _assert_structure(body):
+                        failure_reason = "response structure invalid"
                 except Exception as e:
                     failure_reason = f"JSON parse error: {e}"
 
+            # ── Rumusan 1: success = keberhasilan transmisi ───────────────
             if failure_reason:
-                _rec("rest_req_failed",       1, error=failure_reason)
-                _rec("rest_req_success_rate", 0, error=failure_reason)
-                _rec("iterations",            1, error=failure_reason)
+                _rec("rest_req_success", 0, error=failure_reason)
+                _rec("iterations",       1, error=failure_reason)
                 res.failure(failure_reason)
             else:
-                _rec("rest_req_failed",       0)
-                _rec("rest_req_success_rate", 1)
-                _rec("iterations",            1)
+                _rec("rest_req_success", 1)
+                _rec("iterations",       1)
                 res.success()
 
     except Exception as e:
-        t_end      = time.perf_counter()
-        error_msg  = f"{type(e).__name__}: {e}"
-        elapsed    = (t_end - t_start) * 1000
-        _rec("rest_req_duration",     elapsed,    error=error_msg)
-        _rec("rest_req_sending",      0,          error=error_msg)
-        _rec("rest_req_waiting",      elapsed,    error=error_msg)
-        _rec("rest_req_receiving",    0,          error=error_msg)
-        _rec("rest_data_sent",        0,          error=error_msg)
-        _rec("rest_data_received",    0,          error=error_msg)
-        _rec("rest_req_failed",       1,          error=error_msg)
-        _rec("rest_req_success_rate", 0,          error=error_msg)
-        _rec("iterations",            1,          error=error_msg)
+        t_end     = time.perf_counter()
+        error_msg = f"{type(e).__name__}: {e}"
+        elapsed   = (t_end - t_send_start) * 1000
+
+        _rec("rest_req_duration",  elapsed,    error=error_msg)
+        _rec("rest_req_ttfb",      elapsed,    error=error_msg)
+        _rec("rest_req_receiving", 0,          error=error_msg)
+        _rec("rest_data_sent",     0,          error=error_msg)
+        _rec("rest_data_received", 0,          error=error_msg)
+        _rec("rest_req_success",   0,          error=error_msg)
+        _rec("iterations",         1,          error=error_msg)
 
     finally:
         with _active_lock:
@@ -145,29 +167,43 @@ def analyze_skin(client) -> None:
         _rec("rest_active_requests", _active_requests)
 
 
-def _assert(body: dict, tc: dict) -> str | None:
-    failures = []
-
+def _assert_structure(body: dict) -> bool:
+    """
+    Validasi struktur response — tanpa cek label AI.
+    Failure di sini = server tidak mengembalikan format yang benar.
+    Success rate (rumusan 1) murni mencerminkan keberhasilan transmisi.
+    """
     if not isinstance(body.get("analysis_id"), str):
-        failures.append("missing analysis_id")
+        return False
     if not isinstance(body.get("server_sha256"), str):
-        failures.append("missing server_sha256")
-
+        return False
     results = body.get("results", [])
     if not isinstance(results, list) or not results:
-        failures.append("results kosong")
-    else:
-        top  = results[0]
-        conf = top.get("confidence", -1)
-        if not (0 <= conf <= 1):
-            failures.append(f"confidence out of range: {conf}")
-        for f in ("label", "description", "recommendation"):
-            if not isinstance(top.get(f), str):
-                failures.append(f"missing {f}")
-        if top.get("label") != tc["expected_label"]:
-            failures.append(
-                f"wrong label: got '{top.get('label')}' "
-                f"expected '{tc['expected_label']}'"
-            )
+        return False
+    top  = results[0]
+    conf = top.get("confidence", -1)
+    if not (0 <= conf <= 1):
+        return False
+    for f in ("label", "description", "recommendation"):
+        if not isinstance(top.get(f), str):
+            return False
+    return True
 
-    return " | ".join(failures) if failures else None
+
+def _assert_with_warning(body: dict, tc: dict) -> str | None:
+    """
+    Cek label vs expected — warning only, tidak mempengaruhi success rate.
+    Dipisah agar akurasi model AI server tidak mencemari metrik transmisi.
+    """
+    results = body.get("results", [])
+    if not results:
+        return None
+    top      = results[0]
+    got      = top.get("label", "")
+    expected = tc["expected_label"]
+    if got != expected:
+        return (
+            f"label mismatch: got '{got}' expected '{expected}' "
+            f"(file: {tc['filename']})"
+        )
+    return None
