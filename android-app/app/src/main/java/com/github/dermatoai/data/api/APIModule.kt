@@ -64,7 +64,7 @@ object APIModule {
                     it.useTransportSecurity()
                 }
             }
-            .keepAliveTime(30, TimeUnit.SECONDS)
+            .keepAliveTime(120, TimeUnit.SECONDS)
             .keepAliveTimeout(5, TimeUnit.SECONDS)
             .keepAliveWithoutCalls(true)
             .build()

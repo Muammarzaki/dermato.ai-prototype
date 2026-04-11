@@ -1,4 +1,6 @@
 import com.google.protobuf.gradle.proto
+import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     id("androidx.room")
@@ -8,6 +10,13 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -36,14 +45,19 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://dermato-ai-prototype-rest-477067570225.europe-west1.run.app\""
+                "\"${localProperties.getProperty("BASE_URL")}\""
             )
             buildConfigField(
                 "String",
                 "GRPC_HOST",
-                "\"dermato-ai-prototype-grpc-477067570225.europe-west1.run.app\""
+                "\"${localProperties.getProperty("GRPC_HOST")}\""
             )
-            buildConfigField("int", "GRPC_PORT", "443")
+            buildConfigField(
+                "int",
+                "GRPC_PORT",
+                "${localProperties.getProperty("GRPC_PORT")}"
+            )
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isDebuggable = true

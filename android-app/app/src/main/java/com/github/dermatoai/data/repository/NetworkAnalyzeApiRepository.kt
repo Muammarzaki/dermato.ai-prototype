@@ -91,21 +91,25 @@ class NetworkAnalyzeApiRepository @Inject constructor(
                 AnalyzeSkinRequest.newBuilder()
                     .setInfo(
                         ImageInfo.newBuilder()
-                            .setImageType("jpeg")
+                            .setImageType("image/jpeg")
                             .setUserId("android-user")
                             .setClientSha256(
                                 ByteString
                                     .copyFrom(imageChecksum)
+
                             )
+                            .putMetadata("source", "android-app")
+                            .putMetadata("environment", "production")
+                            .putMetadata("file_size", imageBytes.size.toString())
                             .build()
                     )
                     .build()
             )
             Log.d("NetworkAnalyzeApiRepository", "Sent metadata")
-            val chunkSize = 64 * 1024
+            val chunkSize256kb = 256 * 1024
             var offset = 0
             while (offset < imageBytes.size) {
-                val length = min(chunkSize, imageBytes.size - offset)
+                val length = min(chunkSize256kb, imageBytes.size - offset)
                 emit(
                     AnalyzeSkinRequest.newBuilder()
                         .setChunk(
@@ -120,7 +124,7 @@ class NetworkAnalyzeApiRepository @Inject constructor(
             Log.d("NetworkAnalyzeApiRepository", "Sent all chunks")
         }
         return analyseStub
-            .withDeadlineAfter(30, TimeUnit.SECONDS)
+            .withDeadlineAfter(120, TimeUnit.SECONDS)
             .analyzeSkin(requestFlow).let {
                 Log.d("NetworkAnalyzeApiRepository", "Received response")
                 Log.d("NetworkAnalyzeApiRepository", "Response: $it")
